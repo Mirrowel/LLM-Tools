@@ -1,0 +1,62 @@
+[
+  {
+    "id": "creative_mandelbrot_set",
+    "subcategory": "fractals",
+    "prompt": "Create an interactive Mandelbrot set explorer using HTML5 Canvas.\n\n**Features:**\n- Render the Mandelbrot set with colors\n- Zoom controls:\n  - Click to zoom in at that point\n  - Right-click to zoom out\n  - Scroll wheel to zoom\n- Pan: drag to move view\n- Controls:\n  - Max iterations slider (affects detail)\n  - Color scheme selector (5+ different palettes)\n  - Reset to default view button\n  - Coordinates display (current view bounds)\n- Performance:\n  - Progressive rendering (show rough, then refine)\n  - Canvas size: 800x600\n\n**Visual:**\n- Beautiful color gradients for iteration counts\n- Smooth color transitions\n- Loading indicator during calculation\n\n**Technical:**\n- Complex number mathematics\n- Efficient Mandelbrot calculation\n- Canvas pixel manipulation\n- Responsive to user interaction\n\nProvide complete HTML file.",
+    "system_prompt": "You are an expert at creating mathematical visualizations and fractal generators.",
+    "expected_output": null,
+    "evaluation_type": "code_execution",
+    "evaluation_criteria": "Must implement Mandelbrot set calculation with zoom/pan, color schemes, and smooth interaction. Should handle complex number math correctly.",
+    "tags": ["html", "canvas", "fractals", "mathematics", "interactive", "comprehensive"],
+    "metadata": {
+      "difficulty": "very_hard",
+      "estimated_tokens": 2500,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "creative_music_visualizer",
+    "subcategory": "audio",
+    "prompt": "Create a music/audio visualizer using HTML5 Canvas and Web Audio API.\n\n**Features:**\n- Load audio file (file input or use a built-in tone generator)\n- Visualizations (switch between):\n  - Frequency bars (classic equalizer style)\n  - Waveform\n  - Circular spectrum analyzer\n  - Particle reactive system\n- Audio controls:\n  - Play/pause\n  - Volume slider\n  - Mute button\n- Visual controls:\n  - Color scheme selector\n  - Bar count slider (for frequency bars)\n  - Smoothing slider\n  - Sensitivity slider\n\n**Visual:**\n- Full-screen canvas\n- Reactive colors (change with music intensity)\n  - Smooth animations\n- Professional appearance\n\n**Technical:**\n- Web Audio API\n- AnalyserNode for frequency data\n- RequestAnimationFrame for smooth updates\n- Support both file upload and generated tones\n\nProvide complete HTML file.",
+    "system_prompt": "You are an expert at creating audio-reactive visualizations with Web Audio API.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must implement Web Audio API with multiple visualization modes, audio controls, and real-time reaction to audio. Should have smooth, impressive visuals.",
+    "tags": ["html", "canvas", "audio", "visualization", "webaudio", "comprehensive"],
+    "metadata": {
+      "difficulty": "very_hard",
+      "estimated_tokens": 2500,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "creative_ray_tracer",
+    "subcategory": "3d_graphics",
+    "prompt": "Create a simple ray tracer in HTML5 Canvas.\n\n**Scene:**\n- 3-5 spheres of different sizes and colors\n- Point light source\n- Ground plane (checkered pattern)\n- Camera with adjustable position\n\n**Features:**\n- Ray tracing algorithm:\n  - Ray-sphere intersection\n  - Shadows\n  - Diffuse lighting (Lambertian)\n  - Specular highlights\n  - Reflections (1 bounce)\n- Interactive controls:\n  - Camera position (X, Y, Z sliders)\n  - Light position (X, Y, Z sliders)\n  - Render button (start ray trace)\n  - Resolution slider (affects render time)\n- Progress bar during rendering\n\n**Visual:**\n- Realistic lighting and shadows\n- Reflective spheres\n- Smooth shading\n- 400x300 or adjustable resolution\n\n**Technical:**\n- Vector math (3D)\n- Ray-sphere intersection tests\n- Lighting calculations\n- Multi-threaded rendering optional (Web Workers)\n\nProvide complete HTML file.",
+    "system_prompt": "You are an expert at computer graphics and ray tracing algorithms.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must implement basic ray tracer with sphere intersection, shadows, reflections, and lighting. Should produce realistic-looking rendered image.",
+    "tags": ["html", "canvas", "raytracing", "3d", "graphics", "comprehensive"],
+    "metadata": {
+      "difficulty": "very_hard",
+      "estimated_tokens": 3000,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "creative_conway_life",
+    "subcategory": "cellular_automata",
+    "prompt": "Create Conway's Game of Life with a comprehensive UI.\n\n**Core mechanics:**\n- Grid-based cellular automaton\n- Classic rules:\n  - Live cell: 2-3 neighbors → stays alive\n  - Dead cell: 3 neighbors → becomes alive\n  - Otherwise → dies/stays dead\n\n**Features:**\n- Grid size: 100x100 or adjustable\n- Click cells to toggle alive/dead\n- Drag to draw patterns\n- Controls:\n  - Play/Pause\n  - Step (advance one generation)\n  - Speed slider (generations per second)\n  - Clear grid\n  - Random fill (with density slider)\n- Pattern library (dropdown):\n  - Glider\n  - Blinker\n  - Pulsar\n  - Gosper glider gun\n  - 5+ more patterns\n- Statistics:\n  - Generation count\n  - Population count\n  - Population graph over time\n- Zoom in/out\n- Grid lines toggle\n\n**Visual:**\n- Clean, modern UI\n- Alive cells: colored (customizable)\n- Dead cells: background\n- Smooth animations\n\nProvide complete HTML file.",
+    "system_prompt": "You are an expert at creating cellular automata simulations.",
+    "expected_output": null,
+    "evaluation_type": "code_execution",
+    "evaluation_criteria": "Must implement Game of Life rules correctly with comprehensive UI, pattern library, statistics, and smooth interaction.",
+    "tags": ["html", "canvas", "cellular_automata", "simulation", "comprehensive"],
+    "metadata": {
+      "difficulty": "hard",
+      "estimated_tokens": 2500,
+      "should_be_complete_app": true
+    }
+  }
+]

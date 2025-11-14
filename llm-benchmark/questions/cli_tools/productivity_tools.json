@@ -1,0 +1,77 @@
+[
+  {
+    "id": "cli_todo_manager_python",
+    "subcategory": "task_management",
+    "prompt": "Create a complete CLI to-do list manager in Python with these features:\n\n**Commands:**\n- `add <task>` - Add a new task\n- `list` - Show all tasks with IDs and status\n- `complete <id>` - Mark task as complete\n- `delete <id>` - Delete a task\n- `clear` - Clear all completed tasks\n\n**Requirements:**\n- Persist tasks to a JSON file\n- Show task IDs, descriptions, and status (✓ or ○)\n- Use argparse for command parsing\n- Colorful output using colorama or rich\n- Handle errors gracefully\n\nProvide the complete, runnable Python script with all imports and logic.",
+    "system_prompt": "You are an expert Python developer who creates polished CLI applications.",
+    "expected_output": null,
+    "evaluation_type": "code_execution",
+    "evaluation_criteria": "Code must run without errors, implement all commands, persist data, and handle basic error cases.",
+    "tags": ["python", "cli", "crud", "file_io", "comprehensive"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 800,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "cli_file_organizer_python",
+    "subcategory": "file_management",
+    "prompt": "Create a CLI file organizer in Python that organizes files in a directory by type.\n\n**Features:**\n- Scan a directory and categorize files by extension\n- Move files into folders: Images/, Documents/, Videos/, Audio/, Archives/, Code/, Others/\n- Show a summary of what will be moved before doing it\n- Implement `--dry-run` flag to preview without moving\n- Implement `--undo` to restore original structure (save state to JSON)\n- Add `--verbose` flag for detailed output\n\n**File categories:**\n- Images: .jpg, .jpeg, .png, .gif, .svg, .webp\n- Documents: .pdf, .doc, .docx, .txt, .md\n- Videos: .mp4, .avi, .mkv, .mov\n- Audio: .mp3, .wav, .flac, .m4a\n- Archives: .zip, .tar, .gz, .rar\n- Code: .py, .js, .java, .cpp, .rs, .go\n\nProvide the complete Python script.",
+    "system_prompt": "You are an expert at building practical CLI tools with Python.",
+    "expected_output": null,
+    "evaluation_type": "code_execution",
+    "evaluation_criteria": "Must implement file categorization, dry-run mode, and basic undo functionality. Should use argparse and pathlib.",
+    "tags": ["python", "cli", "file_management", "comprehensive"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 900,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "cli_weather_dashboard_rust",
+    "subcategory": "api_client",
+    "prompt": "Create a CLI weather dashboard in Rust that fetches and displays weather data.\n\n**Features:**\n- Accept city name as argument\n- Fetch weather from a mock API endpoint (simulate with hardcoded JSON)\n- Display:\n  - Current temperature\n  - Weather condition (sunny, cloudy, rainy)\n  - Humidity and wind speed\n  - 3-day forecast\n- Use colored output (termcolor or colored crate)\n- Format output in a nice ASCII table\n- Handle errors (city not found, network errors)\n\n**Mock API Response:**\nSimulate a JSON response like:\n```json\n{\n  \"city\": \"Tokyo\",\n  \"current\": {\"temp\": 22, \"condition\": \"Sunny\", \"humidity\": 60, \"wind\": 10},\n  \"forecast\": [\n    {\"day\": \"Tomorrow\", \"temp\": 24, \"condition\": \"Cloudy\"},\n    {\"day\": \"Day 2\", \"temp\": 20, \"condition\": \"Rainy\"},\n    {\"day\": \"Day 3\", \"temp\": 23, \"condition\": \"Sunny\"}\n  ]\n}\n```\n\nProvide the complete Rust code with Cargo.toml dependencies.",
+    "system_prompt": "You are an expert Rust developer who builds CLI applications.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must include proper Rust code with error handling, structured data types, and formatted output. Should parse mock JSON and display nicely.",
+    "tags": ["rust", "cli", "api", "comprehensive"],
+    "metadata": {
+      "difficulty": "hard",
+      "estimated_tokens": 1000,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "cli_markdown_to_html_node",
+    "subcategory": "text_processing",
+    "prompt": "Create a CLI Markdown to HTML converter in Node.js.\n\n**Features:**\n- Convert Markdown files to HTML\n- Support:\n  - Headings (# ## ###)\n  - Bold (**text**) and italic (*text*)\n  - Lists (ordered and unordered)\n  - Code blocks (```language```)\n  - Links [text](url)\n  - Images ![alt](url)\n- Generate a complete HTML page with CSS styling\n- Save output to a file\n- Usage: `node md2html.js input.md output.html`\n\n**Include:**\n- CSS for nice typography\n- Syntax highlighting styles for code blocks\n- Responsive design\n\nProvide the complete Node.js script.",
+    "system_prompt": "You are an expert JavaScript/Node.js developer who builds text processing tools.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must implement Markdown parsing for all specified features and generate valid HTML with embedded CSS.",
+    "tags": ["javascript", "nodejs", "cli", "parsing", "comprehensive"],
+    "metadata": {
+      "difficulty": "hard",
+      "estimated_tokens": 1200,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "cli_system_monitor_python",
+    "subcategory": "system_tools",
+    "prompt": "Create a real-time system monitor CLI in Python.\n\n**Features:**\n- Display continuously updating dashboard showing:\n  - CPU usage (overall and per core)\n  - Memory usage (used/total, percentage)\n  - Disk usage\n  - Top 5 processes by CPU usage\n  - Network stats (bytes sent/received)\n- Update every 1 second\n- Use `psutil` for system info\n- Use `rich` library for beautiful terminal UI\n- Color-code values (green <50%, yellow 50-80%, red >80%)\n- Allow quit with 'q' key\n\nProvide the complete Python script with all imports.",
+    "system_prompt": "You are an expert at building terminal UI applications with Python.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must use psutil and rich/curses for real-time display. Should show all required metrics with color coding.",
+    "tags": ["python", "cli", "system_monitoring", "real_time", "comprehensive"],
+    "metadata": {
+      "difficulty": "hard",
+      "estimated_tokens": 1000,
+      "should_be_complete_app": true
+    }
+  }
+]

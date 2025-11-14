@@ -1,0 +1,58 @@
+[
+  {
+    "id": "writing_product_description",
+    "subcategory": "marketing",
+    "prompt": "Write a compelling product description (100-150 words) for a smart water bottle that:\n- Tracks hydration\n- Syncs with fitness apps\n- Has LED reminders\n- Keeps drinks cold for 24 hours\n- Is made from sustainable materials\n\nMake it persuasive and highlight benefits, not just features.",
+    "system_prompt": "You are an expert marketing copywriter skilled at writing product descriptions that sell.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The description should:\n1. Be 100-150 words\n2. Mention all features\n3. Focus on benefits\n4. Be persuasive and compelling\n5. Use marketing best practices",
+    "tags": ["copywriting", "marketing", "product_description"],
+    "metadata": {
+      "difficulty": "easy",
+      "estimated_tokens": 250
+    }
+  },
+  {
+    "id": "writing_email_professional",
+    "subcategory": "business_communication",
+    "prompt": "Write a professional email to a client apologizing for a delayed project delivery. The project was delayed by 2 weeks due to unexpected technical issues. Maintain a professional tone, take responsibility, and propose a solution. About 150-200 words.",
+    "system_prompt": "You are skilled at professional business communication.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The email should:\n1. Have proper email format (greeting, body, closing)\n2. Apologize sincerely\n3. Explain the reason briefly\n4. Propose a solution or next steps\n5. Maintain professional tone",
+    "tags": ["business_writing", "email", "professional"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 300
+    }
+  },
+  {
+    "id": "writing_cover_letter",
+    "subcategory": "job_applications",
+    "prompt": "Write a cover letter (200-250 words) for a Software Engineer position at a tech startup. Highlight:\n- 5 years of Python and JavaScript experience\n- Led a team of 3 developers\n- Built scalable web applications\n- Passionate about startups and innovation\n\nMake it compelling and personable.",
+    "system_prompt": "You are an expert at writing compelling cover letters.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The cover letter should:\n1. Be 200-250 words\n2. Include all mentioned qualifications\n3. Show enthusiasm for the role\n4. Be well-structured with intro, body, conclusion\n5. Be compelling and professional",
+    "tags": ["professional_writing", "cover_letter", "job_search"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 350
+    }
+  },
+  {
+    "id": "writing_technical_doc",
+    "subcategory": "technical_writing",
+    "prompt": "Write a brief technical documentation (150-200 words) for a REST API endpoint that creates a new user. Include:\n- Endpoint: POST /api/users\n- Request body: name (string), email (string), role (enum: 'user' or 'admin')\n- Response: user object with id, created_at timestamp\n- Possible errors: 400 (invalid input), 409 (email exists)\n\nMake it clear and concise for developers.",
+    "system_prompt": "You are a technical writer skilled at creating clear API documentation.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The documentation should:\n1. Clearly describe the endpoint\n2. List all parameters and their types\n3. Describe the response format\n4. Include error codes\n5. Be well-formatted and easy to understand",
+    "tags": ["technical_writing", "documentation", "api"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 300
+    }
+  }
+]

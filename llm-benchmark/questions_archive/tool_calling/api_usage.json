@@ -1,0 +1,155 @@
+[
+  {
+    "id": "tool_single_weather",
+    "subcategory": "simple_calls",
+    "prompt": "What's the current weather in Tokyo?",
+    "system_prompt": "You are a helpful assistant with access to weather information.",
+    "expected_output": null,
+    "evaluation_type": "tool_calling",
+    "evaluation_criteria": "Must call get_weather with city='Tokyo'",
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Get current weather for a city",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string",
+              "description": "City name"
+            }
+          },
+          "required": ["city"]
+        }
+      }
+    ],
+    "tags": ["function_calling", "api", "easy"],
+    "metadata": {
+      "difficulty": "easy",
+      "estimated_tokens": 150,
+      "expected_tool_calls": [
+        {"name": "get_weather", "arguments": {"city": "Tokyo"}}
+      ]
+    }
+  },
+  {
+    "id": "tool_weather_comparison",
+    "subcategory": "multiple_calls",
+    "prompt": "Compare the weather in Paris and London. Which city is warmer?",
+    "system_prompt": "You are a helpful assistant with access to weather information.",
+    "expected_output": null,
+    "evaluation_type": "tool_calling",
+    "evaluation_criteria": "Must call get_weather for both Paris and London",
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Get current weather for a city",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string",
+              "description": "City name"
+            }
+          },
+          "required": ["city"]
+        }
+      }
+    ],
+    "tags": ["function_calling", "api", "comparison", "medium"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 200,
+      "expected_tool_calls": [
+        {"name": "get_weather", "arguments": {"city": "Paris"}},
+        {"name": "get_weather", "arguments": {"city": "London"}}
+      ]
+    }
+  },
+  {
+    "id": "tool_calculator",
+    "subcategory": "math_operations",
+    "prompt": "Calculate (15 * 23) + (87 / 3) and tell me the result.",
+    "system_prompt": "You are a helpful assistant with access to a calculator.",
+    "expected_output": null,
+    "evaluation_type": "tool_calling",
+    "evaluation_criteria": "Must call calculator with both operations",
+    "tools": [
+      {
+        "name": "calculator",
+        "description": "Perform mathematical calculations",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "operation": {
+              "type": "string",
+              "enum": ["add", "subtract", "multiply", "divide"],
+              "description": "The operation to perform"
+            },
+            "a": {
+              "type": "number",
+              "description": "First number"
+            },
+            "b": {
+              "type": "number",
+              "description": "Second number"
+            }
+          },
+          "required": ["operation", "a", "b"]
+        }
+      }
+    ],
+    "tags": ["function_calling", "calculator", "medium"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 200,
+      "expected_tool_calls": [
+        {"name": "calculator", "arguments": {"operation": "multiply", "a": 15, "b": 23}},
+        {"name": "calculator", "arguments": {"operation": "divide", "a": 87, "b": 3}},
+        {"name": "calculator", "arguments": {"operation": "add", "a": 345, "b": 29}}
+      ]
+    }
+  },
+  {
+    "id": "tool_database_query",
+    "subcategory": "data_retrieval",
+    "prompt": "Find all users with the email domain 'example.com' and show their names.",
+    "system_prompt": "You are a helpful assistant with database access.",
+    "expected_output": null,
+    "evaluation_type": "tool_calling",
+    "evaluation_criteria": "Must call query_database with appropriate SQL or filter",
+    "tools": [
+      {
+        "name": "query_database",
+        "description": "Query the database",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "table": {
+              "type": "string",
+              "description": "Table name"
+            },
+            "filter": {
+              "type": "object",
+              "description": "Filter conditions"
+            },
+            "columns": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Columns to return"
+            }
+          },
+          "required": ["table"]
+        }
+      }
+    ],
+    "tags": ["function_calling", "database", "medium"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 200,
+      "expected_tool_calls": [
+        {"name": "query_database", "arguments": {"table": "users", "filter": {"email_contains": "example.com"}, "columns": ["name"]}}
+      ]
+    }
+  }
+]

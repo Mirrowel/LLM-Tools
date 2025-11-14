@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MirroBench - LLM Benchmark Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #13131a;
+            --bg-tertiary: #1c1c26;
+            --bg-card: #232333;
+            --bg-hover: #2a2a3a;
+            --border-color: #2d2d3d;
+            --border-hover: #dc2626;
+            --text-primary: #f5f5f7;
+            --text-secondary: #a8a8b3;
+            --text-dim: #6b6b78;
+            --accent-primary: #dc2626;
+            --accent-secondary: #991b1b;
+            --success: #22c55e;
+            --success-bg: rgba(34, 197, 94, 0.15);
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.15);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.15);
+            --info: #3b82f6;
+            --info-bg: rgba(59, 130, 246, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .app-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            padding: 2rem 2rem 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.5;
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .logo-icon {
+            width: 56px;
+            height: 56px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            font-weight: 400;
+        }
+
+        /* Navigation */
+        .nav-bar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0.75rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+
+        .breadcrumb {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-secondary);
+            border-color: var(--accent-secondary);
+        }
+
+        .btn-success {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #16a34a;
+            border-color: #16a34a;
+        }
+
+        /* Content */
+        .main-content {
+            flex: 1;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 2rem;
+        }
+
+        .loading, .error {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .loading {
+            color: var(--text-secondary);
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .error {
+            color: var(--danger);
+            background: var(--danger-bg);
+            border: 1px solid var(--danger);
+            border-radius: 12px;
+            margin: 2rem 0;
+        }
+
+        /* Leaderboard Table */
+        .leaderboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .leaderboard-header h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .info-banner {
+            background: var(--info-bg);
+            border: 1px solid var(--info);
+            border-left: 4px solid var(--info);
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .table-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem 1.25rem;
+            text-align: left;
+        }
+
+        thead {
+            background: var(--bg-tertiary);
+        }
+
+        th {
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+        th:hover {
+            color: var(--accent-primary);
+        }
+
+        tbody tr {
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .rank-cell {
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        .rank-1 { color: #FFD700; }
+        .rank-2 { color: #C0C0C0; }
+        .rank-3 { color: #CD7F32; }
+
+        .score-bar-container {
+            width: 100%;
+            max-width: 200px;
+        }
+
+        .score-bar {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            height: 28px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .score-fill {
+            background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            height: 100%;
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.4);
+        }
+
+        .score-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            border: 1px solid;
+        }
+
+        .badge-success {
+            background: var(--success-bg);
+            color: var(--success);
+            border-color: var(--success);
+        }
+
+        .badge-danger {
+            background: var(--danger-bg);
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        .badge-warning {
+            background: var(--warning-bg);
+            color: var(--warning);
+            border-color: var(--warning);
+        }
+
+        .badge-info {
+            background: var(--info-bg);
+            color: var(--info);
+            border-color: var(--info);
+        }
+
+        /* Response Viewer */
+        .response-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .response-title {
+            flex: 1;
+        }
+
+        .response-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.2s;
+        }
+
+        .card:hover {
+            border-color: var(--border-hover);
+            box-shadow: 0 8px 24px rgba(220, 38, 38, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-content {
+            color: var(--text-secondary);
+        }
+
+        /* Evaluation Cards */
+        .evaluations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .eval-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.2s;
+        }
+
+        .eval-card.primary {
+            border-color: var(--accent-primary);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.05) 0%, transparent 100%);
+        }
+
+        .eval-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.25rem;
+        }
+
+        .eval-type {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+        }
+
+        .eval-score-display {
+            text-align: center;
+        }
+
+        .eval-score-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+
+        .eval-score-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .eval-reasoning {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-primary);
+            margin-top: 1rem;
+            font-size: 0.9375rem;
+            line-height: 1.6;
+        }
+
+        .eval-details {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            font-size: 0.875rem;
+        }
+
+        .detail-label {
+            color: var(--text-dim);
+        }
+
+        .detail-value {
+            font-weight: 500;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        .code-output {
+            background: var(--bg-primary);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.875rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .code-output.error {
+            color: var(--danger);
+        }
+
+        .code-output.success {
+            color: var(--success);
+        }
+
+        /* Artifact Viewer */
+        .artifact-viewer {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .artifact-iframe {
+            width: 100%;
+            min-height: 600px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .metric-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.25rem;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .metric-card:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(220, 38, 38, 0.2);
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        /* Collapsible Section */
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .collapsible:hover {
+            color: var(--accent-primary);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.open {
+            max-height: 2000px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent-primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            border: 2px solid var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--bg-card);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .evaluations-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .response-header {
+                flex-direction: column;
+            }
+
+            .nav-content {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">🔴</div>
+                    <div>
+                        <h1>MirroBench</h1>
+                        <p class="subtitle">Compare and evaluate AI model performance</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-bar">
+            <div class="nav-content">
+                <div class="breadcrumb" id="breadcrumb">📊 Global Leaderboard</div>
+                <button class="btn btn-primary" onclick="loadUnifiedLeaderboard()">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div id="errorMessage"></div>
+            <div id="loadingMessage" class="loading">Loading</div>
+            <div id="mainContent" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let leaderboardData = null;
+        let currentModel = null;
+        let currentModelRuns = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadUnifiedLeaderboard();
+        });
+
+        // Load global leaderboard
+        async function loadUnifiedLeaderboard() {
+            showLoading();
+            try {
+                const response = await fetch('/api/leaderboard/unified');
+                const data = await response.json();
+                leaderboardData = data.leaderboard;
+                displayUnifiedLeaderboard(data.leaderboard);
+                document.getElementById('breadcrumb').textContent = '📊 Global Leaderboard';
+            } catch (error) {
+                showError('Failed to load unified leaderboard: ' + error.message);
+            }
+        }
+
+        // Display global leaderboard
+        function displayUnifiedLeaderboard(leaderboard) {
+            const content = document.getElementById('mainContent');
+            content.style.display = 'block';
+            document.getElementById('loadingMessage').style.display = 'none';
+
+            let html = '<div class="leaderboard-header">';
+            html += '<h2>🏆 Global Leaderboard</h2>';
+            html += '</div>';
+
+            html += '<div class="info-banner">';
+            html += '<strong>ℹ️ Note:</strong> Showing the latest run for each model. ';
+            html += 'Click on a model to view all runs and pin a specific run to the leaderboard.';
+            html += '</div>';
+
+            html += '<div class="table-container">';
+            html += '<table>';
+            html += '<thead><tr>';
+            html += '<th>Rank</th>';
+            html += '<th>Model</th>';
+            html += '<th>Score</th>';
+            html += '<th>Passed</th>';
+            html += '<th>Run ID</th>';
+            html += '<th>Avg TPS</th>';
+            html += '<th>Total Cost</th>';
+            html += '<th>Actions</th>';
+            html += '</tr></thead><tbody>';
+
+            let rank = 1;
+            for (const [modelName, entry] of Object.entries(leaderboard)) {
+                const rankClass = rank <= 3 ? `rank-${rank}` : '';
+                const passRate = (entry.passed_questions / entry.total_questions * 100).toFixed(1);
+                const isPinned = entry.is_preferred ? '📌 ' : '';
+
+                html += `<tr>`;
+                html += `<td class="rank-cell ${rankClass}">#${rank}</td>`;
+                html += `<td><strong>${escapeHtml(modelName)}</strong></td>`;
+                html += `<td>
+                    <div class="score-bar-container">
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: ${entry.overall_score}%"></div>
+                            <div class="score-text">${entry.overall_score.toFixed(1)}/100</div>
+                        </div>
+                    </div>
+                </td>`;
+                html += `<td>
+                    <span class="badge ${entry.passed_questions === entry.total_questions ? 'badge-success' : 'badge-info'}">
+                        ${entry.passed_questions}/${entry.total_questions} (${passRate}%)
+                    </span>
+                </td>`;
+                html += `<td><small>${isPinned}${entry.run_id}</small></td>`;
+                html += `<td>${entry.avg_tps ? entry.avg_tps.toFixed(1) : 'N/A'}</td>`;
+                html += `<td>${entry.total_cost ? '$' + entry.total_cost.toFixed(4) : 'N/A'}</td>`;
+                html += `<td><button class="btn" onclick="viewModelDetailsUnified('${escapeHtml(modelName)}')">View Details</button></td>`;
+                html += `</tr>`;
+                rank++;
+            }
+
+            html += '</tbody></table></div>';
+
+            content.innerHTML = html;
+        }
+
+        // View model details from global leaderboard
+        async function viewModelDetailsUnified(modelName) {
+            currentModel = modelName;
+            showLoading();
+            try {
+                const runsResponse = await fetch(`/api/models/${encodeURIComponent(modelName)}/runs`);
+                const runsData = await runsResponse.json();
+                currentModelRuns = runsData.runs;
+
+                if (currentModelRuns.length === 0) {
+                    showError('No runs found for this model');
+                    return;
+                }
+
+                await viewModelDetailsForRun(modelName, currentModelRuns[0].run_id);
+            } catch (error) {
+                showError('Failed to load model details: ' + error.message);
+            }
+        }
+
+        // View model details for a specific run
+        async function viewModelDetailsForRun(modelName, runId) {
+            showLoading();
+            try {
+                const response = await fetch(`/api/runs/${runId}`);
+                const runData = await response.json();
+
+                const questionsResponse = await fetch(`/api/questions`);
+                const questionsData = await questionsResponse.json();
+
+                const prefsResponse = await fetch('/api/leaderboard/preferences');
+                const prefsData = await prefsResponse.json();
+                const isPreferred = prefsData.preferences[modelName] === runId;
+
+                let html = '';
+
+                // Header with back button
+                html += '<div class="response-header">';
+                html += '<div class="response-title">';
+                html += '<h2>📋 ' + escapeHtml(modelName) + ' - Detailed Results</h2>';
+                html += '</div>';
+                html += '<div class="response-actions">';
+                html += '<button class="btn" onclick="loadUnifiedLeaderboard()">← Back to Leaderboard</button>';
+                html += '</div>';
+                html += '</div>';
+
+                // Run selector
+                html += '<div class="card">';
+                html += '<div class="card-header">';
+                html += '<div class="card-title">🏃 Benchmark Run Selection</div>';
+                html += '</div>';
+                html += '<div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">';
+                html += '<select id="modelRunSelector" onchange="viewModelDetailsForRun(\'' + escapeHtml(modelName) + '\', this.value)" style="flex: 1; min-width: 300px; padding: 0.625rem; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px;">';
+                currentModelRuns.forEach(run => {
+                    const selected = run.run_id === runId ? 'selected' : '';
+                    const score = run.score_data ? ` - Score: ${run.score_data.overall_score.toFixed(1)}` : '';
+                    html += `<option value="${run.run_id}" ${selected}>${run.run_id}${score}</option>`;
+                });
+                html += '</select>';
+
+                if (isPreferred) {
+                    html += '<span class="badge badge-success">📌 Used in Leaderboard</span>';
+                    html += '<button class="btn" onclick="clearLeaderboardPreference(\'' + escapeHtml(modelName) + '\')">Reset to Latest</button>';
+                } else {
+                    html += '<button class="btn btn-success" onclick="setLeaderboardPreference(\'' + escapeHtml(modelName) + '\', \'' + runId + '\')">📌 Use in Leaderboard</button>';
+                }
+                html += '</div>';
+                html += '</div>';
+
+                // Get responses
+                const questionPromises = questionsData.questions
+                    .filter(q => runData.categories.includes(q.category))
+                    .slice(0, 30)
+                    .map(async q => {
+                        try {
+                            const resp = await fetch(`/api/runs/${runId}/models/${encodeURIComponent(modelName)}/questions/${q.id}`);
+                            if (resp.ok) {
+                                const data = await resp.json();
+                                return { question: q, ...data };
+                            }
+                        } catch (e) {
+                            return null;
+                        }
+                    });
+
+                const responses = (await Promise.all(questionPromises)).filter(r => r !== null);
+
+                // Display responses
+                for (const item of responses) {
+                    const evaluation = item.evaluation;
+                    const scoreClass = evaluation && evaluation.passed ? 'badge-success' : 'badge-danger';
+                    const score = evaluation ? evaluation.score.toFixed(1) : 'N/A';
+
+                    html += '<div class="card" style="cursor: pointer;" onclick="viewResponse(\'' + escapeHtml(modelName) + '\', \'' + item.question.id + '\', \'' + runId + '\')">';
+                    html += '<div class="card-header">';
+                    html += '<div class="card-title">' + escapeHtml(item.question.id) + '</div>';
+                    html += '<span class="badge ' + scoreClass + '">Score: ' + score + '/100</span>';
+                    html += '</div>';
+                    html += '<div class="card-content">';
+                    html += '<p>' + escapeHtml(item.question.prompt) + '</p>';
+                    html += '</div>';
+                    html += '</div>';
+                }
+
+                document.getElementById('breadcrumb').textContent = '📋 ' + modelName + ' - Run: ' + runId;
+                const content = document.getElementById('mainContent');
+                content.innerHTML = html;
+                content.style.display = 'block';
+                document.getElementById('loadingMessage').style.display = 'none';
+            } catch (error) {
+                showError('Failed to load model details: ' + error.message);
+            }
+        }
+
+        // View specific response with evaluations
+        async function viewResponse(modelName, questionId, runId, useFixed = false) {
+            if (!runId) return;
+
+            showLoading();
+            try {
+                const url = `/api/runs/${runId}/models/${encodeURIComponent(modelName)}/questions/${questionId}?use_fixed=${useFixed}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                let html = '';
+
+                // Header
+                html += '<div class="response-header">';
+                html += '<div class="response-title">';
+                html += '<h2>📄 Response Viewer</h2>';
+                html += '<p style="color: var(--text-secondary); margin-top: 0.5rem;"><strong>' + escapeHtml(data.question.id) + '</strong></p>';
+                html += '</div>';
+                html += '<div class="response-actions">';
+                html += '<button class="btn" onclick="viewModelDetailsForRun(\'' + escapeHtml(modelName) + '\', \'' + runId + '\')">← Back</button>';
+                html += '<button class="btn btn-primary" onclick="reEvaluateResponse(\'' + escapeHtml(modelName) + '\', \'' + questionId + '\', \'' + runId + '\')">🔄 Re-Evaluate</button>';
+                html += '</div>';
+                html += '</div>';
+
+                // Question
+                html += '<div class="card">';
+                html += '<div class="card-header">';
+                html += '<div class="card-title">❓ Question</div>';
+                html += '</div>';
+                html += '<div class="card-content">';
+                html += '<p>' + escapeHtml(data.question.prompt) + '</p>';
+                if (data.question.evaluation_criteria) {
+                    html += '<div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px;">';
+                    html += '<strong style="color: var(--text-dim); font-size: 0.875rem;">Evaluation Criteria:</strong>';
+                    html += '<p style="margin-top: 0.5rem;">' + escapeHtml(data.question.evaluation_criteria) + '</p>';
+                    html += '</div>';
+                    }
+                html += '</div>';
+                html += '</div>';
+
+                // Evaluations
+                if (data.evaluations && Object.keys(data.evaluations).length > 0) {
+                    html += '<h3 style="margin: 2rem 0 1rem; font-size: 1.5rem;">📊 Evaluations</h3>';
+                    html += '<div class="evaluations-grid">';
+
+                    // LLM Judge first (if exists)
+                    if (data.evaluations.llm_judge) {
+                        html += renderEvaluationCard(data.evaluations.llm_judge, true);
+                    }
+
+                    // Then other evaluations
+                    for (const [type, eval] of Object.entries(data.evaluations)) {
+                        if (type !== 'llm_judge') {
+                            html += renderEvaluationCard(eval, false);
+                        }
+                    }
+
+                    html += '</div>';
+                }
+
+                // Artifact
+                if (data.artifact) {
+                    html += '<div class="artifact-viewer">';
+                    html += '<h3 class="card-title">🎨 Generated Application</h3>';
+                    if (data.artifact_type === 'multi_file') {
+                        html += '<p style="color: var(--text-secondary); margin-bottom: 1rem;">Multi-file application: ' + data.artifact_metadata.files.join(', ') + '</p>';
+                        html += '<iframe class="artifact-iframe" sandbox="allow-scripts allow-same-origin allow-forms" src="' + data.artifact + '"></iframe>';
+                    } else if (data.artifact_type === 'html') {
+                        html += '<iframe class="artifact-iframe" sandbox="allow-scripts allow-same-origin" srcdoc="' + escapeHtml(data.artifact) + '"></iframe>';
+                    }
+                    html += '</div>';
+                }
+
+                // Response Text
+                html += '<div class="card">';
+                html += '<div class="card-header">';
+                html += '<div class="card-title collapsible" onclick="toggleSection(\'response-text\')">💬 Model Response <span id="response-text-toggle">[+]</span></div>';
+                html += '</div>';
+                html += '<div id="response-text" class="collapsible-content">';
+                html += '<div class="code-output">' + escapeHtml(data.response.response_text) + '</div>';
+                html += '</div>';
+                html += '</div>';
+
+                // Metrics
+                if (data.response.metrics && Object.keys(data.response.metrics).length > 0) {
+                    html += '<h3 style="margin: 2rem 0 1rem; font-size: 1.5rem;">📈 Performance Metrics</h3>';
+                    html += '<div class="metrics-grid">';
+                    const m = data.response.metrics;
+                    if (m.ttft) html += '<div class="metric-card"><div class="metric-label">TTFT</div><div class="metric-value">' + m.ttft.toFixed(2) + 's</div></div>';
+                    if (m.tokens_per_second) html += '<div class="metric-card"><div class="metric-label">TPS</div><div class="metric-value">' + m.tokens_per_second.toFixed(1) + '</div></div>';
+                    if (m.total_tokens) html += '<div class="metric-card"><div class="metric-label">Tokens</div><div class="metric-value">' + m.total_tokens.toLocaleString() + '</div></div>';
+                    if (m.estimated_cost) html += '<div class="metric-card"><div class="metric-label">Cost</div><div class="metric-value">$' + m.estimated_cost.toFixed(4) + '</div></div>';
+                    html += '</div>';
+                }
+
+                document.getElementById('breadcrumb').textContent = '📄 ' + modelName + ' - ' + questionId;
+                const content = document.getElementById('mainContent');
+                content.innerHTML = html;
+                content.style.display = 'block';
+                document.getElementById('loadingMessage').style.display = 'none';
+            } catch (error) {
+                showError('Failed to load response: ' + error.message);
+            }
+        }
+
+        // Render evaluation card
+        function renderEvaluationCard(evaluation, isPrimary) {
+            const typeLabels = {
+                'llm_judge': 'LLM Judge',
+                'code_execution': 'Code Execution',
+                'tool_calling': 'Tool Calling',
+                'exact_match': 'Exact Match',
+                'contains': 'Contains Check'
+            };
+
+            const scoreColor = evaluation.passed ? 'var(--success)' : 'var(--danger)';
+            const typeLabel = typeLabels[evaluation.evaluation_type] || evaluation.evaluation_type;
+
+            let html = '<div class="eval-card' + (isPrimary ? ' primary' : '') + '">';
+            html += '<div class="eval-header">';
+            html += '<div>';
+            html += '<div class="eval-type">' + escapeHtml(typeLabel) + '</div>';
+            if (evaluation.evaluator_model) {
+                html += '<div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.25rem;">Model: ' + escapeHtml(evaluation.evaluator_model) + '</div>';
+            }
+            html += '</div>';
+            html += '<div class="eval-score-display">';
+            html += '<div class="eval-score-value" style="color: ' + scoreColor + '">' + evaluation.score.toFixed(1) + '</div>';
+            html += '<div class="eval-score-label">out of 100</div>';
+            html += '<div style="margin-top: 0.5rem;">';
+            html += '<span class="badge ' + (evaluation.passed ? 'badge-success' : 'badge-danger') + '">' + (evaluation.passed ? '✓ Passed' : '✗ Failed') + '</span>';
+            html += '</div>';
+            html += '</div>';
+            html += '</div>';
+
+            if (evaluation.reasoning) {
+                html += '<div class="eval-reasoning">';
+                html += '<strong style="display: block; margin-bottom: 0.5rem; color: var(--text-dim);">Reasoning:</strong>';
+                html += escapeHtml(evaluation.reasoning);
+                html += '</div>';
+            }
+
+            // Show code execution details if available
+            if (evaluation.details) {
+                const details = evaluation.details;
+                if (details.language || details.execution_success !== undefined) {
+                    html += '<div class="eval-details">';
+
+                    if (details.language) {
+                        html += '<div class="detail-item">';
+                        html += '<span class="detail-label">Language:</span>';
+                        html += '<span class="detail-value">' + escapeHtml(details.language) + '</span>';
+                        html += '</div>';
+                    }
+
+                    if (details.execution_success !== undefined) {
+                        html += '<div class="detail-item">';
+                        html += '<span class="detail-label">Execution:</span>';
+                        html += '<span class="badge ' + (details.execution_success ? 'badge-success' : 'badge-danger') + '">' + (details.execution_success ? '✓ Success' : '✗ Failed') + '</span>';
+                        html += '</div>';
+                    }
+
+                    if (details.output) {
+                        html += '<div style="margin-top: 1rem;">';
+                        html += '<strong style="display: block; margin-bottom: 0.5rem; color: var(--text-dim);">Output:</strong>';
+                        html += '<div class="code-output success">' + escapeHtml(details.output) + '</div>';
+                        html += '</div>';
+                    }
+
+                    if (details.error) {
+                        html += '<div style="margin-top: 1rem;">';
+                        html += '<strong style="display: block; margin-bottom: 0.5rem; color: var(--text-dim);">Error:</strong>';
+                        html += '<div class="code-output error">' + escapeHtml(details.error) + '</div>';
+                        html += '</div>';
+                    }
+
+                    html += '</div>';
+                }
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        // Re-evaluate response
+        async function reEvaluateResponse(modelName, questionId, runId) {
+            if (!confirm('This will re-run the evaluation for this response. Continue?')) {
+                return;
+            }
+
+            showLoading();
+            try {
+                const response = await fetch(`/api/runs/${runId}/models/${encodeURIComponent(modelName)}/questions/${questionId}/re-evaluate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Re-evaluation failed');
+                }
+
+                const data = await response.json();
+                await viewResponse(modelName, questionId, runId);
+                alert('✓ ' + data.message);
+            } catch (error) {
+                showError('Failed to re-evaluate: ' + error.message);
+            }
+        }
+
+        // Set leaderboard preference
+        async function setLeaderboardPreference(modelName, runId) {
+            try {
+                await fetch(`/api/leaderboard/preferences/${encodeURIComponent(modelName)}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({run_id: runId})
+                });
+                await viewModelDetailsForRun(modelName, runId);
+            } catch (error) {
+                showError('Failed to set preference: ' + error.message);
+            }
+        }
+
+        // Clear leaderboard preference
+        async function clearLeaderboardPreference(modelName) {
+            try {
+                await fetch(`/api/leaderboard/preferences/${encodeURIComponent(modelName)}`, {
+                    method: 'DELETE'
+                });
+                await viewModelDetailsUnified(modelName);
+            } catch (error) {
+                showError('Failed to clear preference: ' + error.message);
+            }
+        }
+
+        // Toggle collapsible section
+        function toggleSection(id) {
+            const content = document.getElementById(id);
+            const toggle = document.getElementById(id + '-toggle');
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                toggle.textContent = '[+]';
+            } else {
+                content.classList.add('open');
+                toggle.textContent = '[-]';
+            }
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Show loading
+        function showLoading() {
+            document.getElementById('loadingMessage').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        // Show error
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.innerHTML = '<div class="error"><strong>Error:</strong> ' + escapeHtml(message) + '</div>';
+            errorDiv.style.display = 'block';
+            document.getElementById('loadingMessage').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

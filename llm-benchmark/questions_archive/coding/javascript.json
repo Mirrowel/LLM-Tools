@@ -1,0 +1,72 @@
+[
+  {
+    "id": "coding_js_promise",
+    "subcategory": "async",
+    "prompt": "Write a JavaScript function called `fetchWithTimeout(url, timeout)` that fetches a URL but rejects if it takes longer than the timeout (in milliseconds). Use Promises and fetch API. Return only the function definition.",
+    "system_prompt": "You are an expert JavaScript programmer familiar with Promises and async programming.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The code should use Promise.race() or similar to implement timeout functionality with fetch.",
+    "tags": ["javascript", "promises", "async", "medium"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 300
+    }
+  },
+  {
+    "id": "coding_js_debounce",
+    "subcategory": "functional",
+    "prompt": "Write a JavaScript function called `debounce(func, delay)` that returns a debounced version of the function. The debounced function should only execute after the delay has passed without any new calls. Include only the function definition.",
+    "system_prompt": "You are an expert JavaScript programmer familiar with closures and functional programming.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The code should correctly implement debouncing using setTimeout and clearTimeout.",
+    "tags": ["javascript", "functional", "closures", "medium"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 250
+    }
+  },
+  {
+    "id": "coding_js_deep_clone",
+    "subcategory": "algorithms",
+    "prompt": "Write a JavaScript function called `deepClone(obj)` that creates a deep copy of an object, handling nested objects and arrays. Include only the function definition.",
+    "system_prompt": "You are an expert JavaScript programmer.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The code should recursively clone objects and arrays, creating new references.",
+    "tags": ["javascript", "algorithms", "recursion", "medium"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 250
+    }
+  },
+  {
+    "id": "coding_js_event_emitter",
+    "subcategory": "oop",
+    "prompt": "Write a JavaScript class called `EventEmitter` with methods: on(event, callback), emit(event, ...args), and off(event, callback). This should allow subscribing to events, emitting events, and unsubscribing. Include only the class definition.",
+    "system_prompt": "You are an expert JavaScript programmer familiar with the observer pattern.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The code should implement a working event emitter with on, emit, and off methods.",
+    "tags": ["javascript", "oop", "patterns", "medium"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 350
+    }
+  },
+  {
+    "id": "coding_js_curry",
+    "subcategory": "functional",
+    "prompt": "Write a JavaScript function called `curry(fn)` that takes a function and returns a curried version. The curried function should accept arguments one at a time and return the result when all arguments are provided. Include only the function definition.",
+    "system_prompt": "You are an expert in functional programming with JavaScript.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The code should implement currying correctly, handling partial application.",
+    "tags": ["javascript", "functional", "closures", "hard"],
+    "metadata": {
+      "difficulty": "hard",
+      "estimated_tokens": 300
+    }
+  }
+]

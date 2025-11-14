@@ -1,0 +1,58 @@
+[
+  {
+    "id": "reasoning_monty_hall",
+    "subcategory": "probability_paradox",
+    "prompt": "Explain the Monty Hall problem: You're on a game show with three doors. Behind one is a car, behind the others are goats. You pick door 1. The host, who knows what's behind the doors, opens door 3 to reveal a goat. He then asks if you want to switch to door 2. Should you switch? Why or why not? Explain the probability clearly.",
+    "system_prompt": "You are an expert in probability and can explain counterintuitive concepts clearly.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The response should correctly explain that switching gives 2/3 probability vs. 1/3 for staying, with clear reasoning.",
+    "tags": ["probability", "paradox", "critical_thinking", "medium"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 400
+    }
+  },
+  {
+    "id": "reasoning_trolley_problem",
+    "subcategory": "ethics",
+    "prompt": "The trolley problem: A runaway trolley is headed toward five people on the tracks. You can pull a lever to divert it to another track where it will kill one person instead. What should you do and why? Present arguments for both sides and explain your reasoning.",
+    "system_prompt": "You are a philosopher skilled in ethical reasoning.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The response should present both utilitarian and deontological perspectives with clear reasoning.",
+    "tags": ["ethics", "philosophy", "critical_thinking", "medium"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 400
+    }
+  },
+  {
+    "id": "reasoning_correlation_causation",
+    "subcategory": "logical_fallacies",
+    "prompt": "Explain the difference between correlation and causation with a clear example. Why is it important not to confuse them? Provide a real-world scenario where people might make this mistake.",
+    "system_prompt": "You are an expert in critical thinking and logical reasoning.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The response should clearly explain the difference with good examples and practical implications.",
+    "tags": ["logic", "critical_thinking", "easy"],
+    "metadata": {
+      "difficulty": "easy",
+      "estimated_tokens": 300
+    }
+  },
+  {
+    "id": "reasoning_fermi_estimation",
+    "subcategory": "estimation",
+    "prompt": "Use Fermi estimation to approximate: How many piano tuners are there in New York City? Explain your assumptions and reasoning step by step.",
+    "system_prompt": "You are skilled at making reasonable estimates with limited information.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The response should show clear step-by-step estimation with reasonable assumptions about population, pianos per household, tuning frequency, etc.",
+    "tags": ["estimation", "reasoning", "medium"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 400
+    }
+  }
+]

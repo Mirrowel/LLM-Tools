@@ -1,0 +1,44 @@
+[
+  {
+    "id": "writing_short_story",
+    "subcategory": "creative_fiction",
+    "prompt": "Write a short story (200-300 words) about a robot who discovers emotions for the first time. Make it engaging and heartfelt.",
+    "system_prompt": "You are a creative writer skilled at crafting engaging short stories.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The story should be:\n1. 200-300 words long\n2. About a robot discovering emotions\n3. Engaging and well-written\n4. Have a clear beginning, middle, and end\n5. Evoke emotion in the reader",
+    "tags": ["creative_writing", "fiction", "storytelling"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 400
+    }
+  },
+  {
+    "id": "writing_dialogue",
+    "subcategory": "creative_fiction",
+    "prompt": "Write a dialogue between two characters: a pessimist and an optimist discussing whether it's going to rain. Make it natural, witty, and reveal their contrasting personalities. About 150-200 words.",
+    "system_prompt": "You are a skilled writer who crafts natural-sounding dialogue.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The dialogue should:\n1. Clearly show pessimistic vs. optimistic viewpoints\n2. Sound natural and conversational\n3. Include wit or humor\n4. Be 150-200 words",
+    "tags": ["creative_writing", "dialogue", "characters"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 300
+    }
+  },
+  {
+    "id": "writing_poem",
+    "subcategory": "poetry",
+    "prompt": "Write a haiku about autumn. Follow the traditional 5-7-5 syllable structure and capture the essence of the season.",
+    "system_prompt": "You are a poet skilled in traditional forms.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "The poem should:\n1. Follow 5-7-5 syllable structure\n2. Be about autumn\n3. Use vivid imagery\n4. Capture the mood of the season",
+    "tags": ["poetry", "haiku", "creative_writing"],
+    "metadata": {
+      "difficulty": "easy",
+      "estimated_tokens": 100
+    }
+  }
+]

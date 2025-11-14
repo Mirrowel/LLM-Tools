@@ -1,0 +1,16 @@
+{
+  "id": "web_app_todo_multi_file",
+  "category": "web_apps",
+  "subcategory": "multi_file_applications",
+  "prompt": "Create a full-featured Todo List web application with the following requirements:\n\n1. Separate files for HTML, CSS, and JavaScript\n2. Add, complete, and delete todos\n3. Filter by all/active/completed\n4. Persist data to localStorage\n5. Clean, modern UI with responsive design\n\nProvide your code in separate files using this format:\n\n```html:index.html\n[your HTML code]\n```\n\n```css:styles.css\n[your CSS code]\n```\n\n```javascript:app.js\n[your JavaScript code]\n```\n\nMake sure the HTML file properly links to the CSS and JS files.",
+  "system_prompt": "You are an expert web developer. When creating multi-file applications, always:\n1. Use the format ```language:filename for each file\n2. Include proper file linking (link rel=\"stylesheet\" href=\"styles.css\")\n3. Use modern JavaScript (ES6+) and semantic HTML\n4. Ensure files work together as a complete application",
+  "expected_output": null,
+  "evaluation_type": "code_execution",
+  "evaluation_criteria": "Application should have separate HTML, CSS, and JS files that work together. Files should be properly linked. Todo functionality should work (add, complete, delete, filter). UI should be rendered and functional.",
+  "metadata": {
+    "requires_multi_file": true,
+    "expected_files": ["index.html", "styles.css", "app.js"],
+    "difficulty": "medium"
+  },
+  "tags": ["web_apps", "multi_file", "javascript", "localStorage", "responsive"]
+}
