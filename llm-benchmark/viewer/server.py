@@ -55,6 +55,10 @@ artifact_extractor = ArtifactExtractor()
 # Initialize code fixer (will be set up with client when needed)
 code_fixer = None
 
+# Persistent temp directories per session (key: session_id, value: temp_dir_path)
+# Session ID format: {runId}_{modelName}_{questionId}_{version}
+persistent_temp_dirs = {}
+
 
 def _extract_and_combine_code_blocks(text: str) -> Optional[str]:
     """
@@ -717,6 +721,7 @@ class ExecuteRequest(BaseModel):
     timeout: int = 10
     args: str = ""  # Command-line arguments
     stdin: str = ""  # Standard input data
+    session_id: str = ""  # Session identifier for persistent temp directories (format: runId_modelName_questionId_version)
 
 
 @app.post("/api/execute")
@@ -728,8 +733,19 @@ async def execute_code(request: ExecuteRequest):
     import shlex
 
     try:
-        # Create temp directory for execution
-        temp_dir = tempfile.mkdtemp(prefix='viewer_exec_')
+        # Use persistent temp directory if session_id provided, otherwise create new one
+        if request.session_id and request.session_id in persistent_temp_dirs:
+            temp_dir = persistent_temp_dirs[request.session_id]
+            cleanup_temp = False  # Don't cleanup persistent directories
+        elif request.session_id:
+            # Create new persistent temp directory for this session
+            temp_dir = tempfile.mkdtemp(prefix=f'viewer_exec_{request.session_id.replace("/", "_")}_')
+            persistent_temp_dirs[request.session_id] = temp_dir
+            cleanup_temp = False  # Don't cleanup persistent directories
+        else:
+            # No session ID - create temporary directory (old behavior)
+            temp_dir = tempfile.mkdtemp(prefix='viewer_exec_')
+            cleanup_temp = True  # Cleanup non-persistent directories
 
         try:
             # Parse command-line arguments
@@ -1072,8 +1088,9 @@ edition = "2021"
                 raise HTTPException(status_code=400, detail=f"Unsupported language: {request.language}")
 
         finally:
-            # Cleanup
-            shutil.rmtree(temp_dir, ignore_errors=True)
+            # Cleanup only if not a persistent directory
+            if cleanup_temp:
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
     except subprocess.TimeoutExpired:
         return {

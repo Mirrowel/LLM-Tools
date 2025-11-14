@@ -536,6 +536,11 @@
             background: white;
         }
 
+        .artifact-iframe-container {
+            width: 100%;
+            position: relative;
+        }
+
         /* Metrics Grid */
         .metrics-grid {
             display: grid;
@@ -1247,15 +1252,24 @@
 
                 // Artifact or Code Execution
                 if (data.artifact) {
-                    // Server-provided artifact (HTML or multi-file)
-                    html += '<div class="artifact-viewer">';
-                    html += '<h3 class="card-title">🎨 Generated Application</h3>';
+                    // Server-provided artifact (HTML or multi-file) - show as execution panel, not auto-run
+                    const artifactId = questionId.replace(/[^a-zA-Z0-9]/g, '_') + '_artifact';
+                    html += '<div class="artifact-viewer" id="exec-container-' + artifactId + '">';
+                    html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">';
+                    html += '<h3 class="card-title">🎨 Web Application</h3>';
+                    html += '<div style="display: flex; gap: 0.5rem;">';
+                    html += '<button class="btn btn-primary" onclick="runWebApp(\'' + artifactId + '\')">▶️ Run Application</button>';
+                    html += '<button class="btn" onclick="popOutWebApp(\'' + artifactId + '\')">🗗 Pop Out</button>';
+                    html += '</div>';
+                    html += '</div>';
+
                     if (data.artifact_type === 'multi_file') {
                         html += '<p style="color: var(--text-secondary); margin-bottom: 1rem;">Multi-file application: ' + data.artifact_metadata.files.join(', ') + '</p>';
-                        html += '<iframe class="artifact-iframe" sandbox="allow-scripts allow-same-origin allow-forms" src="' + data.artifact + '"></iframe>';
+                        html += '<div id="webapp-' + artifactId + '" data-src="' + data.artifact + '" data-type="multi_file" style="display: none;"></div>';
                     } else if (data.artifact_type === 'html') {
-                        html += '<iframe class="artifact-iframe" sandbox="allow-scripts allow-same-origin" srcdoc="' + escapeHtml(data.artifact) + '"></iframe>';
+                        html += '<div id="webapp-' + artifactId + '" data-html="' + escapeHtml(data.artifact) + '" data-type="html" style="display: none;"></div>';
                     }
+                    html += '<div id="preview-' + artifactId + '" class="artifact-iframe-container" style="display: none; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; height: 600px;"></div>';
                     html += '</div>';
                 } else if (data.response.response_text) {
                     // Try to extract code for execution or preview
@@ -1276,14 +1290,18 @@
                             const block = codeBlocks[i];
                             const codeId = questionId.replace(/[^a-zA-Z0-9]/g, '_') + '_' + i;
 
-                            // HTML gets special preview treatment
+                            // HTML gets execution panel (no auto-run)
                             if (block.language === 'html') {
-                                html += '<div class="artifact-viewer" id="artifact-' + codeId + '">';
+                                html += '<div class="artifact-viewer" id="exec-container-' + codeId + '">';
                                 html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">';
-                                html += '<h3 class="card-title">🎨 HTML Preview</h3>';
-                                html += '<button class="btn" onclick="popOutArtifact(\'' + codeId + '\')">🗗 Pop Out</button>';
+                                html += '<h3 class="card-title">🎨 HTML Web App</h3>';
+                                html += '<div style="display: flex; gap: 0.5rem;">';
+                                html += '<button class="btn btn-primary" onclick="runWebApp(\'' + codeId + '\')">▶️ Run Application</button>';
+                                html += '<button class="btn" onclick="popOutWebApp(\'' + codeId + '\')">🗗 Pop Out</button>';
                                 html += '</div>';
-                                html += '<iframe class="artifact-iframe" sandbox="allow-scripts allow-same-origin" srcdoc="' + escapeHtml(block.code) + '"></iframe>';
+                                html += '</div>';
+                                html += '<div id="webapp-' + codeId + '" data-html="' + escapeHtml(block.code) + '" data-type="html" style="display: none;"></div>';
+                                html += '<div id="preview-' + codeId + '" class="artifact-iframe-container" style="display: none; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; height: 600px;"></div>';
                                 html += '</div>';
                             } else {
                                 // Executable languages get interactive terminal
@@ -1321,7 +1339,10 @@
                                         'php': 'PHP'
                                     };
 
-                                    html += '<div class="artifact-viewer" id="exec-container-' + codeId + '">';
+                                    // Create session ID for persistent temp directories
+                                    const sessionId = runId + '_' + modelName.replace(/\//g, '_') + '_' + questionId + '_' + (data.response.version || 'latest');
+
+                                    html += '<div class="artifact-viewer" id="exec-container-' + codeId + '" data-session-id="' + sessionId + '">';
                                     html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">';
                                     html += '<h3 class="card-title">' + (langIcons[normalizedLang] || '💻') + ' ' + (langNames[normalizedLang] || normalizedLang.toUpperCase()) + ' Code</h3>';
                                     html += '<div style="display: flex; gap: 0.5rem;">';
@@ -1735,6 +1756,7 @@
             const outputElement = document.getElementById('output-' + codeId);
             const argsElement = document.getElementById('args-' + codeId);
             const stdinElement = document.getElementById('stdin-' + codeId);
+            const containerElement = document.getElementById('exec-container-' + codeId);
 
             if (!codeElement) {
                 completeOperation(opId, false, 'Code element not found');
@@ -1744,6 +1766,7 @@
             const code = codeElement.textContent;
             const args = argsElement ? argsElement.value : '';
             const stdin = stdinElement ? stdinElement.value : '';
+            const sessionId = containerElement ? containerElement.getAttribute('data-session-id') : '';
 
             try {
                 const response = await fetch('/api/execute', {
@@ -1754,6 +1777,7 @@
                         language: language,
                         args: args,
                         stdin: stdin,
+                        session_id: sessionId,
                         timeout: 30
                     })
                 });
@@ -1808,68 +1832,153 @@
             }
         }
 
-        // Pop out response in new window
+        // Pop out response in new window with markdown formatting
         function popOutResponse(questionId) {
             const contentElement = document.getElementById('response-content-' + questionId);
             if (!contentElement) return;
 
             const content = contentElement.textContent;
-            const win = window.open('', '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,status=no');
+            const win = window.open('', '_blank', 'width=900,height=700,menubar=no,toolbar=no,location=no,status=no');
 
             if (win) {
-                win.document.write(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <title>Response - ${questionId}</title>
-                        <style>
-                            body {
-                                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                                padding: 2rem;
-                                background: #1a1a1a;
-                                color: #e0e0e0;
-                                line-height: 1.6;
-                            }
-                            pre {
-                                white-space: pre-wrap;
-                                word-wrap: break-word;
-                                background: #2a2a2a;
-                                padding: 1rem;
-                                border-radius: 8px;
-                                border: 1px solid #3a3a3a;
-                            }
-                            h1 {
-                                font-size: 1.5rem;
-                                margin-bottom: 1rem;
-                                border-bottom: 2px solid #3a3a3a;
-                                padding-bottom: 0.5rem;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>Model Response: ${questionId}</h1>
-                        <pre>${content}</pre>
-                    </body>
-                    </html>
-                `);
-                win.document.close();
+                const doc = win.document;
+                doc.open();
+                doc.write('<!DOCTYPE html><html><head><title>Response - ' + questionId + '</title>');
+                doc.write('<style>');
+                doc.write('body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 2rem; background: #1a1a1a; color: #e0e0e0; line-height: 1.6; max-width: 900px; margin: 0 auto; }');
+                doc.write('h1, h2, h3, h4, h5, h6 { color: #ffffff; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: 600; }');
+                doc.write('h1 { font-size: 2rem; border-bottom: 2px solid #3a3a3a; padding-bottom: 0.5rem; }');
+                doc.write('h2 { font-size: 1.5rem; border-bottom: 1px solid #3a3a3a; padding-bottom: 0.25rem; }');
+                doc.write('h3 { font-size: 1.25rem; }');
+                doc.write('h4 { font-size: 1.1rem; }');
+                doc.write('p { margin: 0.75rem 0; }');
+                doc.write('code { background: #2a2a2a; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: "Consolas", "Monaco", monospace; font-size: 0.9em; color: #4ade80; }');
+                doc.write('pre { white-space: pre-wrap; word-wrap: break-word; background: #2a2a2a; padding: 1rem; border-radius: 8px; border: 1px solid #3a3a3a; overflow-x: auto; }');
+                doc.write('pre code { background: none; padding: 0; color: #e0e0e0; }');
+                doc.write('blockquote { border-left: 4px solid #0066cc; margin: 1rem 0; padding-left: 1rem; color: #a0a0a0; font-style: italic; }');
+                doc.write('ul, ol { margin: 0.75rem 0; padding-left: 2rem; }');
+                doc.write('li { margin: 0.25rem 0; }');
+                doc.write('a { color: #0066cc; text-decoration: none; }');
+                doc.write('a:hover { text-decoration: underline; }');
+                doc.write('hr { border: none; border-top: 1px solid #3a3a3a; margin: 1.5rem 0; }');
+                doc.write('table { border-collapse: collapse; width: 100%; margin: 1rem 0; }');
+                doc.write('th, td { border: 1px solid #3a3a3a; padding: 0.5rem; text-align: left; }');
+                doc.write('th { background: #2a2a2a; font-weight: 600; }');
+                doc.write('strong { color: #ffffff; font-weight: 600; }');
+                doc.write('em { font-style: italic; }');
+                doc.write('.page-header { font-size: 1.25rem; margin-bottom: 1.5rem; border-bottom: 2px solid #3a3a3a; padding-bottom: 0.5rem; color: #a0a0a0; }');
+                doc.write('</style></head><body>');
+                doc.write('<div class="page-header">Model Response: ' + questionId + '</div>');
+                doc.write('<div id="content"></div>');
+                doc.write('</body></html>');
+                doc.close();
+
+                // Simple markdown-like formatting
+                win.document.getElementById('content').innerHTML = formatMarkdown(content);
             }
         }
 
-        // Pop out HTML artifact in new window
-        function popOutArtifact(codeId) {
-            const artifactElement = document.getElementById('artifact-' + codeId);
-            if (!artifactElement) return;
+        // Simple markdown formatter
+        function formatMarkdown(text) {
+            let html = text;
 
-            const iframe = artifactElement.querySelector('iframe');
-            if (!iframe) return;
+            // Escape HTML first
+            html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-            const htmlContent = iframe.getAttribute('srcdoc');
-            const win = window.open('', '_blank', 'width=900,height=700');
+            // Code blocks
+            html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(match, lang, code) {
+                return '<pre><code>' + code + '</code></pre>';
+            });
+
+            // Inline code
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+            // Headers
+            html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+            html = html.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+
+            // Bold
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+
+            // Italic
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+
+            // Links
+            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+            // Line breaks and paragraphs
+            html = html.replace(/\n\n/g, '</p><p>');
+            html = html.replace(/\n/g, '<br>');
+            html = '<p>' + html + '</p>';
+
+            // Lists
+            html = html.replace(/<p>- (.*?)<br>/g, '<ul><li>$1</li>');
+            html = html.replace(/<\/li><br>- /g, '</li><li>');
+            html = html.replace(/<\/li><\/p>/g, '</li></ul></p>');
+
+            return html;
+        }
+
+        // Run web application (HTML/multi-file)
+        function runWebApp(appId) {
+            const webappElement = document.getElementById('webapp-' + appId);
+            const previewElement = document.getElementById('preview-' + appId);
+
+            if (!webappElement || !previewElement) return;
+
+            const dataType = webappElement.getAttribute('data-type');
+
+            // Show preview container
+            previewElement.style.display = 'block';
+
+            // Clear previous content
+            previewElement.innerHTML = '';
+
+            if (dataType === 'html') {
+                // Single HTML file
+                const htmlContent = webappElement.getAttribute('data-html');
+                const iframe = document.createElement('iframe');
+                iframe.className = 'artifact-iframe';
+                iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
+                iframe.srcdoc = htmlContent;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                previewElement.appendChild(iframe);
+            } else if (dataType === 'multi_file') {
+                // Multi-file application
+                const src = webappElement.getAttribute('data-src');
+                const iframe = document.createElement('iframe');
+                iframe.className = 'artifact-iframe';
+                iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
+                iframe.src = src;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                previewElement.appendChild(iframe);
+            }
+        }
+
+        // Pop out web application in new window
+        function popOutWebApp(appId) {
+            const webappElement = document.getElementById('webapp-' + appId);
+            if (!webappElement) return;
+
+            const dataType = webappElement.getAttribute('data-type');
+            const win = window.open('', '_blank', 'width=1000,height=700');
 
             if (win) {
-                win.document.write(htmlContent);
-                win.document.close();
+                if (dataType === 'html') {
+                    const htmlContent = webappElement.getAttribute('data-html');
+                    win.document.write(htmlContent);
+                    win.document.close();
+                } else if (dataType === 'multi_file') {
+                    const src = webappElement.getAttribute('data-src');
+                    win.location.href = src;
+                }
             }
         }
 
