@@ -2,11 +2,11 @@
   {
     "id": "webapp_drawing_app",
     "subcategory": "creative_tools",
-    "prompt": "Create a complete drawing/painting app in a single HTML file.\n\n**Features:**\n- Canvas for drawing (800x600)\n- Tools:\n  - Brush (various sizes: 2, 5, 10, 20px)\n  - Eraser\n  - Color picker (10+ preset colors + custom color input)\n  - Clear canvas button\n  - Undo (at least last 10 actions)\n- Brush preview (cursor shows brush size)\n- Save drawing as PNG (download button)\n\n**UI:**\n- Toolbar at top with all tools\n- Color palette displayed nicely\n- Current tool/color indicator\n- Brush size slider\n- Clean, modern design\n\n**Technical:**\n- HTML5 Canvas\n- Vanilla JavaScript\n- Smooth drawing (use mousemove events)\n- Mobile-friendly (touch events)\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at creating interactive web applications with Canvas.",
+    "prompt": "Create a drawing/painting app in a single HTML file. Build a canvas-based application where users can draw freely with various tools and colors. Make it as feature-rich and usable as you can - consider adding different brush types, colors, sizes, undo/redo, layers, save/load, effects, or any other features you'd expect in a creative drawing tool. Focus on smooth drawing experience and good UX.",
+    "system_prompt": "You are an expert at creating interactive web applications with Canvas. Build the best drawing app you can.",
     "expected_output": null,
     "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement functional drawing with brush control, colors, eraser, undo, and save features. Should have good UX.",
+    "evaluation_criteria": "Must implement canvas drawing with brush controls and colors. Evaluated on drawing smoothness, features, and UX.",
     "tags": ["html", "canvas", "drawing", "interactive", "comprehensive"],
     "metadata": {
       "difficulty": "hard",
@@ -17,11 +17,11 @@
   {
     "id": "webapp_quiz_app",
     "subcategory": "education",
-    "prompt": "Create a quiz application in a single HTML file.\n\n**Features:**\n- 10 multiple-choice questions (you create them - mix of topics)\n- 4 options per question\n- \"Next\" button (disabled until answer selected)\n- Progress indicator (Question 3 of 10)\n- Score tracking\n- Results screen at end showing:\n  - Final score\n  - Percentage\n  - Review of all questions (correct answer highlighted)\n- \"Restart Quiz\" button\n\n**UI:**\n- Clean, card-based design\n- Radio buttons for answer selection\n- Green highlight for correct answers in review\n- Red for wrong answers\n- Progress bar\n- Animations for transitions\n\n**Questions:**\nInclude varied topics (history, science, geography, etc.)\n\nProvide complete HTML file with embedded CSS and JavaScript.",
-    "system_prompt": "You are an expert at creating educational web applications.",
+    "prompt": "Create an interactive quiz application in a single HTML file. Build a quiz with multiple questions (you create them) that tracks progress and shows results. Make it as engaging and polished as you can - consider adding different question types, timing, scoring systems, progress tracking, answer explanations, difficulty levels, categories, or visual feedback. Create an enjoyable quiz-taking experience.",
+    "system_prompt": "You are an expert at creating educational web applications. Build the best quiz app you can.",
     "expected_output": null,
     "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement quiz flow, score tracking, question navigation, and detailed results review. Should have good UX and animations.",
+    "evaluation_criteria": "Must implement quiz flow with questions, answers, and scoring. Evaluated on UX, features, and polish.",
     "tags": ["html", "javascript", "quiz", "education", "comprehensive"],
     "metadata": {
       "difficulty": "medium",
@@ -32,11 +32,11 @@
   {
     "id": "webapp_expense_tracker",
     "subcategory": "productivity",
-    "prompt": "Create an expense tracker web app in a single HTML file.\n\n**Features:**\n- Add expense: description, amount, category, date\n- Categories: Food, Transport, Entertainment, Bills, Other\n- List all expenses (sortable by date/amount)\n- Delete expense button\n- Summary statistics:\n  - Total spent\n  - Spending by category (bar chart or pie chart)\n  - This month vs last month\n- Filter expenses by:\n  - Date range\n  - Category\n- Export to CSV button\n- Store data in localStorage\n\n**UI:**\n- Form to add expense\n- Table/list of expenses\n- Charts for visualization (use Chart.js or create with Canvas/SVG)\n- Responsive design\n- Modern, clean interface\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at creating full-stack web applications in a single page.",
+    "prompt": "Create an expense tracker web app in a single HTML file. Build a full-featured personal finance tracker where users can add, view, and analyze their expenses. Make it as comprehensive and useful as you can - consider adding categories, date filtering, charts/visualizations, budgets, recurring expenses, export functionality, or any features that would help someone manage their finances. Include data persistence.",
+    "system_prompt": "You are an expert at creating full-stack web applications. Build the best expense tracker you can.",
     "expected_output": null,
     "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement expense CRUD, localStorage persistence, filtering, charts, and export. Should have comprehensive features.",
+    "evaluation_criteria": "Must implement expense CRUD operations and data persistence. Evaluated on features, data visualization, and usefulness.",
     "tags": ["html", "javascript", "crud", "charts", "comprehensive"],
     "metadata": {
       "difficulty": "very_hard",
@@ -47,11 +47,11 @@
   {
     "id": "webapp_markdown_editor",
     "subcategory": "text_editors",
-    "prompt": "Create a live Markdown editor in a single HTML file.\n\n**Features:**\n- Split view: editor on left, preview on right\n- Real-time preview as you type\n- Support Markdown:\n  - Headings (# ## ###)\n  - Bold, italic, strikethrough\n  - Lists (ordered/unordered)\n  - Links and images\n  - Code blocks with syntax highlighting\n  - Tables\n  - Blockquotes\n- Toolbar with formatting buttons\n- Word count and character count\n- Save to localStorage (auto-save)\n- Export as HTML button\n- Light/Dark theme toggle\n\n**UI:**\n- Resizable split pane\n- Syntax highlighting in editor\n- Beautiful preview styling (like GitHub)\n- Toolbar with common formatting options\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at creating text editing applications.",
+    "prompt": "Create a live Markdown editor in a single HTML file. Build an editor with split-pane view showing Markdown source and rendered preview in real-time. Make it as feature-rich as you can - consider adding toolbar shortcuts, syntax highlighting, auto-save, export options, themes, keyboard shortcuts, different preview styles, or any features you'd want in a professional Markdown editor. Support common Markdown syntax.",
+    "system_prompt": "You are an expert at creating text editing applications. Build the best Markdown editor you can.",
     "expected_output": null,
     "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement Markdown parsing, live preview, toolbar, auto-save, and export. Should support all common Markdown syntax.",
+    "evaluation_criteria": "Must implement Markdown parsing with live preview. Evaluated on syntax support, editing features, and UX.",
     "tags": ["html", "javascript", "markdown", "editor", "comprehensive"],
     "metadata": {
       "difficulty": "very_hard",

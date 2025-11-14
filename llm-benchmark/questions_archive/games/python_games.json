@@ -1,0 +1,47 @@
+[
+  {
+    "id": "game_snake_pygame",
+    "subcategory": "arcade",
+    "prompt": "Create a complete Snake game using Pygame.\n\n**Requirements:**\n- Game window 600x600 pixels\n- Snake starts at center, length 3\n- Arrow keys for movement\n- Food appears randomly\n- Snake grows when eating food\n- Game over on wall collision or self-collision\n- Display score\n- Show \"Game Over\" screen with final score and restart option (press R)\n- Smooth 60 FPS gameplay\n\n**Visual elements:**\n- Snake: green squares\n- Food: red circle\n- Background: black\n- Grid lines (optional but nice)\n\n**Game mechanics:**\n- Snake speed: 10 tiles/second\n- Score = number of food eaten\n\nProvide the complete, runnable Python script with all Pygame code.",
+    "system_prompt": "You are an expert game developer who creates polished games with Pygame.",
+    "expected_output": null,
+    "evaluation_type": "code_execution",
+    "evaluation_criteria": "Must be a complete, runnable Pygame application with all game mechanics, collision detection, and game over handling.",
+    "tags": ["python", "pygame", "game", "arcade", "comprehensive"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 1200,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "game_space_shooter_pygame",
+    "subcategory": "shooter",
+    "prompt": "Create a simple space shooter game using Pygame.\n\n**Features:**\n- Player spaceship at bottom (controlled with arrow keys or A/D)\n- Shoot bullets upward with SPACE key\n- Enemies spawn at top and move downward\n- Enemy spawn rate increases over time\n- Destroy enemies for points\n- Player has 3 lives\n- Game over when all lives lost\n- Display score and lives\n- Restart option on game over\n\n**Visual elements:**\n- Player: blue triangle pointing up\n- Enemies: red circles\n- Bullets: yellow rectangles\n- Background: space theme (dark blue/black with stars)\n\n**Game mechanics:**\n- Enemies spawn every 1-2 seconds (random)\n- Enemy speed increases gradually\n- Collision detection for bullets/enemies and enemies/player\n- Score: +10 per enemy destroyed\n\nProvide complete Pygame code.",
+    "system_prompt": "You are an expert at creating action games with Pygame.",
+    "expected_output": null,
+    "evaluation_type": "code_execution",
+    "evaluation_criteria": "Must implement all game mechanics: player movement, shooting, enemy spawning, collision detection, lives system, and scoring.",
+    "tags": ["python", "pygame", "game", "shooter", "comprehensive"],
+    "metadata": {
+      "difficulty": "hard",
+      "estimated_tokens": 1500,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "game_tetris_python",
+    "subcategory": "puzzle",
+    "prompt": "Create a Tetris game using Pygame.\n\n**Core features:**\n- 10x20 playing field\n- All 7 classic Tetris pieces (I, O, T, S, Z, J, L)\n- Pieces spawn at top center\n- Arrow keys: left/right to move, down to drop faster, up to rotate\n- Space bar for instant drop\n- Lines clear when complete\n- Score system: 1 line = 100, 2 = 300, 3 = 500, 4 = 800\n- Level increases every 10 lines (pieces fall faster)\n- Game over when new piece can't spawn\n\n**Visual:**\n- Grid with borders\n- Different color for each piece type\n- Show next piece preview\n- Display score, level, lines cleared\n- Game over screen\n\nProvide complete Pygame implementation.",
+    "system_prompt": "You are an expert at recreating classic games with all mechanics.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must implement proper Tetris mechanics: piece rotation, line clearing, collision detection, scoring, and level progression. Should have all 7 piece types.",
+    "tags": ["python", "pygame", "game", "puzzle", "tetris", "comprehensive"],
+    "metadata": {
+      "difficulty": "very_hard",
+      "estimated_tokens": 2000,
+      "should_be_complete_app": true
+    }
+  }
+]

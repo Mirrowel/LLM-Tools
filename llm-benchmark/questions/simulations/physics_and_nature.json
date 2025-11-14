@@ -2,26 +2,26 @@
   {
     "id": "sim_solar_system",
     "subcategory": "astronomy",
-    "prompt": "Create an accurate, interactive solar system simulation using HTML5 Canvas.\n\n**Requirements:**\n- Sun at center\n- 8 planets orbiting (Mercury through Neptune)\n- Accurate relative sizes (scaled appropriately)\n- Accurate orbital periods (scaled for visualization)\n- Planetary colors matching reality\n\n**Features:**\n- Play/Pause simulation\n- Speed control (1x, 10x, 100x, 1000x)\n- Click planet to show info panel:\n  - Name\n  - Diameter\n  - Orbital period\n  - Distance from sun\n  - Fun fact\n- Toggle: Show/hide planet names\n- Toggle: Show/hide orbital paths\n- Zoom in/out\n- Time display (days/years elapsed)\n\n**Visual:**\n- Black space background with stars\n- Planets to scale (logarithmic scale for visibility)\n- Smooth orbits\n- Planet rotation on axis\n- Subtle glow effect for Sun\n\n**Technical:**\n- Accurate orbital mechanics (elliptical orbits optional, circular OK)\n- RequestAnimationFrame\n- Responsive canvas\n\nProvide complete HTML file with all planetary data embedded.",
-    "system_prompt": "You are an expert at creating accurate scientific simulations.",
+    "prompt": "Create an interactive solar system simulation using HTML5 Canvas or WebGL. Build an accurate representation of our solar system with the Sun and planets orbiting according to proper physics. Make it as impressive and educational as you can - consider adding accurate orbital mechanics, planetary information, moons, asteroid belts, time controls, zoom/pan, 3D perspective, realistic scaling options, or interactive elements. Create something both scientifically accurate and visually stunning.",
+    "system_prompt": "You are an expert at creating accurate scientific simulations. Build the most impressive solar system simulation you can.",
     "expected_output": null,
     "evaluation_type": "llm_judge",
-    "evaluation_criteria": "Must include all 8 planets with accurate relative properties, orbital simulation, interactive controls, and information display. Should be comprehensive and customizable.",
+    "evaluation_criteria": "Must include Sun and planets with orbital simulation. Evaluated on scientific accuracy, visual quality, interactivity, and educational value.",
     "tags": ["html", "canvas", "simulation", "astronomy", "physics", "comprehensive"],
     "metadata": {
       "difficulty": "very_hard",
-      "estimated_tokens": 2500,
+      "estimated_tokens": 3000,
       "should_be_complete_app": true
     }
   },
   {
     "id": "sim_double_pendulum",
     "subcategory": "physics",
-    "prompt": "Create a double pendulum physics simulation using HTML5 Canvas.\n\n**Physics:**\n- Two pendulum arms connected in series\n- Accurate physics using Lagrangian mechanics or RK4 integration\n- Chaotic motion demonstration\n- Gravity effect\n\n**Features:**\n- Interactive: drag bob to set initial position\n- Controls:\n  - Reset to initial position\n  - Length of each arm (sliders)\n  - Mass of each bob (sliders)\n  - Gravity strength slider\n  - Damping factor (0 = no friction)\n- Draw trail of second bob's path (fading over time)\n- Display total energy\n- Play/pause\n\n**Visual:**\n- Arms: thin lines\n- Bobs: circles (size based on mass)\n- Pivot point at top\n- Grid background\n- Trail showing chaotic path\n\n**Technical:**\n- Proper physics calculations\n- Smooth 60 FPS\n- Responsive controls\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at physics simulations and numerical methods.",
+    "prompt": "Create a double pendulum physics simulation using HTML5 Canvas. Implement accurate chaotic motion physics for a double pendulum system. Make it as feature-rich and educational as you can - consider adding adjustable parameters, path tracing, energy displays, multiple simultaneous pendulums with slight variations, color-coded trails, or visualization of chaos theory. Build something that demonstrates the beauty of chaotic systems.",
+    "system_prompt": "You are an expert at physics simulations and numerical methods. Build the best double pendulum simulation you can.",
     "expected_output": null,
     "evaluation_type": "llm_judge",
-    "evaluation_criteria": "Must implement accurate double pendulum physics with chaotic motion, interactive controls, and path visualization.",
+    "evaluation_criteria": "Must implement accurate double pendulum physics with chaotic motion. Evaluated on physics accuracy, visualization quality, and features.",
     "tags": ["html", "canvas", "physics", "simulation", "chaos", "comprehensive"],
     "metadata": {
       "difficulty": "very_hard",
@@ -32,11 +32,11 @@
   {
     "id": "sim_boids_flocking",
     "subcategory": "artificial_life",
-    "prompt": "Create a boids flocking simulation (like birds or fish) using HTML5 Canvas.\n\n**Boid Behaviors:**\n- Separation: avoid crowding neighbors\n- Alignment: steer towards average heading of neighbors\n- Cohesion: steer towards average position of neighbors\n\n**Features:**\n- 50-200 boids\n- Controls:\n  - Number of boids (slider)\n  - Separation weight (slider)\n  - Alignment weight (slider)\n  - Cohesion weight (slider)\n  - Max speed (slider)\n  - Perception radius (slider)\n- Mouse interaction:\n  - Attract mode: boids fly toward mouse\n  - Repel mode: boids avoid mouse\n- Obstacles: click to place circular obstacles\n- Play/pause\n- Reset button\n\n**Visual:**\n- Boids as triangles pointing in direction of movement\n- Trail effect (optional)\n- Color based on speed or density\n- Wrap around edges or bounce off walls\n- Smooth animation\n\n**Technical:**\n- Spatial hashing for performance (optional)\n- RequestAnimationFrame\n- Vector math for steering behaviors\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at creating artificial life simulations and emergent behavior.",
+    "prompt": "Create a boids flocking simulation using HTML5 Canvas. Implement the classic boids algorithm (separation, alignment, cohesion) to create emergent flocking behavior. Make it as impressive and interactive as you can - consider adding adjustable behavior weights, predators, obstacles, different species, 3D visualization, trails, formations, or other creative features. Create something mesmerizing that demonstrates emergent complexity.",
+    "system_prompt": "You are an expert at creating artificial life simulations and emergent behavior. Build the best boids simulation you can.",
     "expected_output": null,
     "evaluation_type": "llm_judge",
-    "evaluation_criteria": "Must implement proper boids algorithm with all three behaviors, interactive controls, and mouse interaction. Should show emergent flocking behavior.",
+    "evaluation_criteria": "Must implement proper boids algorithm with emergent flocking behavior. Evaluated on realism, interactivity, and visual appeal.",
     "tags": ["html", "canvas", "simulation", "ai", "flocking", "comprehensive"],
     "metadata": {
       "difficulty": "very_hard",
@@ -47,12 +47,27 @@
   {
     "id": "sim_fluid_dynamics",
     "subcategory": "physics",
-    "prompt": "Create a simple 2D fluid dynamics simulation using HTML5 Canvas.\n\n**Features:**\n- Grid-based fluid simulation\n- Mouse interaction:\n  - Drag to add fluid/momentum\n  - Click to add dye/color\n- Fluid behaviors:\n  - Velocity field\n  - Pressure/incompressibility\n  - Diffusion\n  - Advection\n- Controls:\n  - Viscosity slider\n  - Diffusion rate slider\n  - Velocity multiplier slider\n  - Clear fluid button\n  - Add barriers/walls (draw mode)\n- Color modes:\n  - Velocity visualization (heatmap)\n  - Dye colors\n  - Pressure visualization\n\n**Visual:**\n- Smooth, flowing appearance\n- Color-coded velocity/pressure\n- Real-time simulation\n- 64x64 or 128x128 grid\n\n**Technical:**\n- Simplified Navier-Stokes solver\n- Grid-based approach\n- Fast enough for real-time (target 30+ FPS)\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at computational fluid dynamics and physics simulations.",
+    "prompt": "Create a 2D fluid dynamics simulation using HTML5 Canvas. Implement a real-time fluid solver with velocity, pressure, and diffusion. Make it as realistic and interactive as you can - consider adding dye injection, obstacles, different visualization modes, adjustable viscosity, vorticity confinement, or interactive forces. Build something that feels like real fluid and is fun to play with.",
+    "system_prompt": "You are an expert at computational fluid dynamics and physics simulations. Build the best fluid simulation you can.",
     "expected_output": null,
     "evaluation_type": "llm_judge",
-    "evaluation_criteria": "Must implement basic fluid dynamics with mouse interaction, velocity/pressure fields, and customizable parameters. Should run smoothly.",
+    "evaluation_criteria": "Must implement fluid dynamics with velocity and pressure fields. Evaluated on realism, interactivity, performance, and visual quality.",
     "tags": ["html", "canvas", "fluid_dynamics", "physics", "simulation", "comprehensive"],
+    "metadata": {
+      "difficulty": "very_hard",
+      "estimated_tokens": 3000,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "engine_physics_2d",
+    "subcategory": "physics",
+    "prompt": "Build a 2D rigid body physics engine from scratch in Python - no physics libraries allowed (Pygame for rendering is OK). Implement collision detection, collision response, forces, and constraints. Create an impressive demo scene showing off the capabilities. Make it as realistic and feature-rich as you can - consider adding friction, restitution, joints, or other features.",
+    "system_prompt": "You are an expert in physics simulation and computational mathematics. Build a real physics engine.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must handle rigid body dynamics, collision detection/resolution, and forces. Evaluated on physics accuracy, performance, and features demonstrated.",
+    "tags": ["python", "physics", "engine", "simulation", "comprehensive"],
     "metadata": {
       "difficulty": "very_hard",
       "estimated_tokens": 3000,

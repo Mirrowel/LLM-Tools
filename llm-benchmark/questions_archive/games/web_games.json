@@ -1,0 +1,47 @@
+[
+  {
+    "id": "game_2048_html",
+    "subcategory": "puzzle",
+    "prompt": "Create a complete 2048 game in a single HTML file.\n\n**Game mechanics:**\n- 4x4 grid\n- Use arrow keys to slide tiles\n- Tiles with same number merge when they collide\n- New tile (2 or 4) spawns after each move\n- Win condition: reach 2048\n- Game over when no moves possible\n- Score = sum of all merged tiles\n\n**Visual design:**\n- Clean, modern design similar to original\n- Different colors for different tile values\n- Smooth animations when tiles move/merge\n- Display current score and best score (localStorage)\n- New Game button\n- Win/Lose message overlay\n\n**Technical:**\n- Vanilla JavaScript (no frameworks)\n- CSS Grid for layout\n- CSS transitions for animations\n- Responsive design\n\nProvide complete HTML file with embedded CSS and JavaScript.",
+    "system_prompt": "You are an expert web developer who creates polished browser games.",
+    "expected_output": null,
+    "evaluation_type": "code_execution",
+    "evaluation_criteria": "Must implement complete 2048 game mechanics with proper tile movement, merging, scoring, and win/lose detection. Should have smooth animations.",
+    "tags": ["html", "javascript", "game", "puzzle", "comprehensive"],
+    "metadata": {
+      "difficulty": "hard",
+      "estimated_tokens": 2000,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "game_platformer_canvas",
+    "subcategory": "platformer",
+    "prompt": "Create a simple platformer game using HTML5 Canvas.\n\n**Features:**\n- Player character (rectangle) can move left/right and jump\n- 3-5 platforms at different heights\n- Gravity and jump physics\n- Collectible items (coins) scattered around\n- Enemies that move back and forth on platforms\n- Lives system (3 lives)\n- Win condition: collect all coins\n- Lose condition: lose all lives\n\n**Controls:**\n- A/D or Arrow keys: move left/right\n- W or Space: jump\n- R: restart game\n\n**Visual:**\n- Player: blue square\n- Platforms: brown rectangles\n- Coins: yellow circles\n- Enemies: red squares\n- Background: sky blue gradient\n\n**Physics:**\n- Smooth movement\n- Realistic jump arc\n- Collision detection with platforms\n- Enemy collision removes a life\n\nProvide complete HTML with Canvas code.",
+    "system_prompt": "You are an expert at creating Canvas-based games with physics.",
+    "expected_output": null,
+    "evaluation_type": "code_execution",
+    "evaluation_criteria": "Must implement platformer physics (gravity, jumping), collision detection, enemy AI, collectibles, and win/lose conditions.",
+    "tags": ["html", "canvas", "game", "platformer", "physics", "comprehensive"],
+    "metadata": {
+      "difficulty": "very_hard",
+      "estimated_tokens": 2500,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "game_pong_html",
+    "subcategory": "arcade",
+    "prompt": "Create a Pong game in a single HTML file.\n\n**Features:**\n- Two paddles (left and right)\n- Ball bounces between paddles\n- Score tracking (first to 5 wins)\n- Two game modes:\n  - 2-player: W/S for left paddle, ↑/↓ for right paddle\n  - 1-player vs AI: AI paddle follows ball\n\n**Visual:**\n- Classic Pong aesthetic (white on black)\n- Centered dashed line\n- Score display at top\n- Start screen to choose mode\n- Win screen showing winner\n\n**Game mechanics:**\n- Ball speed increases slightly after each hit\n- Paddle can influence ball direction based on where it hits\n- Ball resets to center after each point\n- Smooth 60 FPS animation\n\n**AI behavior:**\n- Moves toward ball's Y position\n- Slight delay for realistic difficulty\n\nProvide complete HTML file.",
+    "system_prompt": "You are an expert at recreating classic arcade games.",
+    "expected_output": null,
+    "evaluation_type": "code_execution",
+    "evaluation_criteria": "Must implement complete Pong mechanics with both game modes, collision detection, scoring, and basic AI.",
+    "tags": ["html", "canvas", "game", "arcade", "ai", "comprehensive"],
+    "metadata": {
+      "difficulty": "medium",
+      "estimated_tokens": 1500,
+      "should_be_complete_app": true
+    }
+  }
+]

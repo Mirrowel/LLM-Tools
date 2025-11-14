@@ -2,11 +2,11 @@
   {
     "id": "viz_svg_clock",
     "subcategory": "svg_graphics",
-    "prompt": "Create a fully functional analog clock using SVG in an HTML file.\n\n**Requirements:**\n- Circular clock face\n- 12 hour markers (tick marks or numbers)\n- Three hands: hour, minute, second\n- Hands update in real-time every second\n- Smooth animation for second hand\n- Hour hand moves gradually (not just on the hour)\n\n**Visual design:**\n- Clean, minimalist design\n- Different colors/styles for each hand\n- Optional: add subtle shadows/gradients\n- Center dot where hands meet\n- Circular border\n\n**Technical:**\n- Pure SVG (no Canvas)\n- JavaScript to update hand positions\n- Use transform/rotate for hand movement\n- Size: 300x300px minimum\n\nProvide complete HTML file with embedded SVG and JavaScript.",
-    "system_prompt": "You are an expert at creating SVG graphics and animations.",
+    "prompt": "Create an analog clock using SVG in an HTML file. Build a working clock that shows the current time with moving hands. Make it as visually appealing as you can - consider adding smooth animations, interesting design elements, different clock styles, Roman numerals, decorative elements, or interactive features. Focus on creating something both functional and beautiful.",
+    "system_prompt": "You are an expert at creating SVG graphics and animations. Build the best analog clock you can.",
     "expected_output": null,
     "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must create functional clock with all three hands moving correctly based on current time. Should use SVG transforms properly.",
+    "evaluation_criteria": "Must display current time with moving hands using SVG. Evaluated on accuracy, visual design, and animation quality.",
     "tags": ["html", "svg", "animation", "clock", "comprehensive"],
     "metadata": {
       "difficulty": "medium",
@@ -17,11 +17,11 @@
   {
     "id": "viz_fractal_tree",
     "subcategory": "generative_art",
-    "prompt": "Create an interactive fractal tree generator using HTML5 Canvas.\n\n**Features:**\n- Draw a fractal tree using recursion\n- Controls:\n  - Recursion depth (slider: 1-12)\n  - Branch angle (slider: 10-60 degrees)\n  - Length reduction factor (slider: 0.5-0.9)\n  - Branch thickness\n- Real-time regeneration as sliders change\n- Randomize button (random colors/angles)\n- Tree should have:\n  - Brown trunk/branches getting thinner\n  - Green leaves at endpoints (or colorful variations)\n  - Natural-looking branching\n\n**Visual:**\n- Canvas 800x600\n- Tree grows from bottom center upward\n- Smooth, organic appearance\n- Optional: add autumn color variation\n\n**Technical:**\n- Recursive drawing algorithm\n- Canvas rendering\n- Responsive controls\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at creating generative art with Canvas and recursion.",
+    "prompt": "Create an interactive fractal tree generator using HTML5 Canvas. Implement a recursive algorithm to draw beautiful fractal trees with adjustable parameters. Make it as interesting and interactive as you can - consider adding controls for recursion depth, branching angles, colors, randomization, wind effects, seasons, or other creative variations. Let users create their own unique fractal art.",
+    "system_prompt": "You are an expert at creating generative art with Canvas and recursion. Build the best fractal tree generator you can.",
     "expected_output": null,
     "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement proper recursive fractal generation with interactive controls that update the tree in real-time.",
+    "evaluation_criteria": "Must implement recursive fractal tree generation with interactive controls. Evaluated on visual quality, interactivity, and creative features.",
     "tags": ["html", "canvas", "fractals", "generative_art", "recursion", "comprehensive"],
     "metadata": {
       "difficulty": "hard",
@@ -32,11 +32,11 @@
   {
     "id": "viz_particle_system",
     "subcategory": "effects",
-    "prompt": "Create an interactive particle system using HTML5 Canvas.\n\n**Features:**\n- Particles spawn at mouse position on click/drag\n- Particle properties:\n  - Random velocity and direction\n  - Gravity effect (fall down)\n  - Fade out over time\n  - Random colors\n- Controls:\n  - Particle count slider\n  - Gravity strength slider\n  - Particle size slider\n  - Color mode selector (rainbow, fire, ice, mono)\n  - Clear button\n- Continuous mode: particles spawn on mouse drag\n- Firework mode: particles explode outward from click point\n\n**Visual:**\n- Canvas fills viewport\n- Smooth animation (60 FPS)\n- Particles leave trails (optional)\n- Blend modes for glowing effect\n\n**Technical:**\n- Particle class/objects\n- Array to manage particles\n- Remove dead particles\n- RequestAnimationFrame for smooth animation\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at creating particle systems and visual effects.",
+    "prompt": "Create an interactive particle system using HTML5 Canvas. Build a physics-based particle simulation with mouse interaction. Make it as visually impressive as you can - consider adding gravity, forces, collisions, trails, colors, different emitter modes (fireworks, fountain, etc.), particle types, or visual effects. Create something mesmerizing and fun to play with.",
+    "system_prompt": "You are an expert at creating particle systems and visual effects. Build the best particle system you can.",
     "expected_output": null,
     "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement working particle system with physics, interactive controls, and smooth performance. Should handle particle lifecycle properly.",
+    "evaluation_criteria": "Must implement particle physics with mouse interaction. Evaluated on visual appeal, performance, and creative effects.",
     "tags": ["html", "canvas", "particles", "physics", "animation", "comprehensive"],
     "metadata": {
       "difficulty": "hard",
@@ -47,11 +47,11 @@
   {
     "id": "viz_data_dashboard",
     "subcategory": "charts",
-    "prompt": "Create an interactive data visualization dashboard in HTML.\n\n**Features:**\n- Display sample sales data for a fictional company\n- Charts (you can use Canvas or SVG - no external libraries):\n  - Line chart: Sales over time (12 months)\n  - Bar chart: Sales by product category\n  - Pie chart: Market share by region\n  - Gauge/metric cards: Total revenue, growth %, avg order\n- Interactive:\n  - Hover on charts shows tooltips with values\n  - Click on legend toggles data series\n  - Date range filter (affects all charts)\n- Responsive grid layout\n- Professional dashboard design\n\n**Sample data:**\nCreate realistic sample data (sales, categories, regions)\n\n**Visual:**\n- Clean, modern dashboard UI\n- Cards/panels for each chart\n- Color-coded consistently\n- Animated transitions\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at creating data visualization dashboards from scratch.",
+    "prompt": "Create an interactive data visualization dashboard in HTML. Build a comprehensive dashboard displaying sample data with multiple chart types (line, bar, pie, etc.). Make it as polished and feature-rich as you can - consider adding interactive tooltips, filtering, date ranges, drill-down, responsive layouts, different themes, real-time updates, or export options. Create sample data that tells an interesting story. You can build charts from scratch or use libraries.",
+    "system_prompt": "You are an expert at creating data visualization dashboards. Build the best dashboard you can.",
     "expected_output": null,
     "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement all chart types with interaction, tooltips, and filtering. Should have professional dashboard layout and design.",
+    "evaluation_criteria": "Must display data with multiple chart types and interactivity. Evaluated on design, features, and data presentation quality.",
     "tags": ["html", "canvas", "charts", "dashboard", "data_viz", "comprehensive"],
     "metadata": {
       "difficulty": "very_hard",

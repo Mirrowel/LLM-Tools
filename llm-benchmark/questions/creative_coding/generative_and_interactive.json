@@ -2,11 +2,11 @@
   {
     "id": "creative_mandelbrot_set",
     "subcategory": "fractals",
-    "prompt": "Create an interactive Mandelbrot set explorer using HTML5 Canvas.\n\n**Features:**\n- Render the Mandelbrot set with colors\n- Zoom controls:\n  - Click to zoom in at that point\n  - Right-click to zoom out\n  - Scroll wheel to zoom\n- Pan: drag to move view\n- Controls:\n  - Max iterations slider (affects detail)\n  - Color scheme selector (5+ different palettes)\n  - Reset to default view button\n  - Coordinates display (current view bounds)\n- Performance:\n  - Progressive rendering (show rough, then refine)\n  - Canvas size: 800x600\n\n**Visual:**\n- Beautiful color gradients for iteration counts\n- Smooth color transitions\n- Loading indicator during calculation\n\n**Technical:**\n- Complex number mathematics\n- Efficient Mandelbrot calculation\n- Canvas pixel manipulation\n- Responsive to user interaction\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at creating mathematical visualizations and fractal generators.",
+    "prompt": "Create an interactive Mandelbrot set explorer using HTML5 Canvas. Build a fractal visualization that allows deep zoom exploration of the Mandelbrot set. Make it as feature-rich and beautiful as you can - consider adding zoom/pan controls, color palettes, iteration controls, coordinate display, smooth rendering, other fractal sets (Julia, Burning Ship), or any features that would make exploring fractals captivating. Create something that showcases the infinite complexity of fractals.",
+    "system_prompt": "You are an expert at creating mathematical visualizations and fractal generators. Build the best fractal explorer you can.",
     "expected_output": null,
     "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement Mandelbrot set calculation with zoom/pan, color schemes, and smooth interaction. Should handle complex number math correctly.",
+    "evaluation_criteria": "Must implement Mandelbrot set rendering with zoom/pan capabilities. Evaluated on mathematical correctness, visual quality, and exploration features.",
     "tags": ["html", "canvas", "fractals", "mathematics", "interactive", "comprehensive"],
     "metadata": {
       "difficulty": "very_hard",
@@ -17,11 +17,11 @@
   {
     "id": "creative_music_visualizer",
     "subcategory": "audio",
-    "prompt": "Create a music/audio visualizer using HTML5 Canvas and Web Audio API.\n\n**Features:**\n- Load audio file (file input or use a built-in tone generator)\n- Visualizations (switch between):\n  - Frequency bars (classic equalizer style)\n  - Waveform\n  - Circular spectrum analyzer\n  - Particle reactive system\n- Audio controls:\n  - Play/pause\n  - Volume slider\n  - Mute button\n- Visual controls:\n  - Color scheme selector\n  - Bar count slider (for frequency bars)\n  - Smoothing slider\n  - Sensitivity slider\n\n**Visual:**\n- Full-screen canvas\n- Reactive colors (change with music intensity)\n  - Smooth animations\n- Professional appearance\n\n**Technical:**\n- Web Audio API\n- AnalyserNode for frequency data\n- RequestAnimationFrame for smooth updates\n- Support both file upload and generated tones\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at creating audio-reactive visualizations with Web Audio API.",
+    "prompt": "Create an audio visualizer using HTML5 Canvas and Web Audio API. Build a real-time visualization that reacts to music or audio input. Make it as impressive as you can - consider adding multiple visualization modes (frequency bars, waveforms, particles, circular, 3D), color schemes, smoothing, audio file support, microphone input, or creative visual effects. Create something visually stunning that truly brings audio to life.",
+    "system_prompt": "You are an expert at creating audio-reactive visualizations with Web Audio API. Build the most impressive visualizer you can.",
     "expected_output": null,
     "evaluation_type": "llm_judge",
-    "evaluation_criteria": "Must implement Web Audio API with multiple visualization modes, audio controls, and real-time reaction to audio. Should have smooth, impressive visuals.",
+    "evaluation_criteria": "Must implement Web Audio API with audio-reactive visualization. Evaluated on visual creativity, responsiveness to audio, and technical implementation.",
     "tags": ["html", "canvas", "audio", "visualization", "webaudio", "comprehensive"],
     "metadata": {
       "difficulty": "very_hard",
@@ -32,11 +32,11 @@
   {
     "id": "creative_ray_tracer",
     "subcategory": "3d_graphics",
-    "prompt": "Create a simple ray tracer in HTML5 Canvas.\n\n**Scene:**\n- 3-5 spheres of different sizes and colors\n- Point light source\n- Ground plane (checkered pattern)\n- Camera with adjustable position\n\n**Features:**\n- Ray tracing algorithm:\n  - Ray-sphere intersection\n  - Shadows\n  - Diffuse lighting (Lambertian)\n  - Specular highlights\n  - Reflections (1 bounce)\n- Interactive controls:\n  - Camera position (X, Y, Z sliders)\n  - Light position (X, Y, Z sliders)\n  - Render button (start ray trace)\n  - Resolution slider (affects render time)\n- Progress bar during rendering\n\n**Visual:**\n- Realistic lighting and shadows\n- Reflective spheres\n- Smooth shading\n- 400x300 or adjustable resolution\n\n**Technical:**\n- Vector math (3D)\n- Ray-sphere intersection tests\n- Lighting calculations\n- Multi-threaded rendering optional (Web Workers)\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at computer graphics and ray tracing algorithms.",
+    "prompt": "Create a ray tracer using HTML5 Canvas (or Python). Implement a renderer that creates photorealistic 3D scenes using ray tracing. Make it as advanced as you can - consider adding reflections, refractions, multiple light sources, different materials, shadows, anti-aliasing, or adjustable camera/scene parameters. Create a scene that demonstrates realistic 3D rendering.",
+    "system_prompt": "You are an expert at computer graphics and ray tracing algorithms. Build the best ray tracer you can.",
     "expected_output": null,
     "evaluation_type": "llm_judge",
-    "evaluation_criteria": "Must implement basic ray tracer with sphere intersection, shadows, reflections, and lighting. Should produce realistic-looking rendered image.",
+    "evaluation_criteria": "Must implement ray tracing with lighting and shadows. Evaluated on rendering quality, features, and realism.",
     "tags": ["html", "canvas", "raytracing", "3d", "graphics", "comprehensive"],
     "metadata": {
       "difficulty": "very_hard",
@@ -47,15 +47,45 @@
   {
     "id": "creative_conway_life",
     "subcategory": "cellular_automata",
-    "prompt": "Create Conway's Game of Life with a comprehensive UI.\n\n**Core mechanics:**\n- Grid-based cellular automaton\n- Classic rules:\n  - Live cell: 2-3 neighbors → stays alive\n  - Dead cell: 3 neighbors → becomes alive\n  - Otherwise → dies/stays dead\n\n**Features:**\n- Grid size: 100x100 or adjustable\n- Click cells to toggle alive/dead\n- Drag to draw patterns\n- Controls:\n  - Play/Pause\n  - Step (advance one generation)\n  - Speed slider (generations per second)\n  - Clear grid\n  - Random fill (with density slider)\n- Pattern library (dropdown):\n  - Glider\n  - Blinker\n  - Pulsar\n  - Gosper glider gun\n  - 5+ more patterns\n- Statistics:\n  - Generation count\n  - Population count\n  - Population graph over time\n- Zoom in/out\n- Grid lines toggle\n\n**Visual:**\n- Clean, modern UI\n- Alive cells: colored (customizable)\n- Dead cells: background\n- Smooth animations\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at creating cellular automata simulations.",
+    "prompt": "Create an implementation of Conway's Game of Life with an interactive interface. Build a cellular automaton that implements the classic Life rules with a comprehensive UI. Make it as feature-rich as you can - consider adding pattern libraries, editing tools, statistics, speed controls, different rules, color schemes, infinite canvas, or other features. Create something that makes exploring cellular automata engaging and educational.",
+    "system_prompt": "You are an expert at creating cellular automata simulations. Build the best Game of Life you can.",
     "expected_output": null,
     "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement Game of Life rules correctly with comprehensive UI, pattern library, statistics, and smooth interaction.",
+    "evaluation_criteria": "Must implement Game of Life rules correctly with interactive controls. Evaluated on correctness, UI quality, and features.",
     "tags": ["html", "canvas", "cellular_automata", "simulation", "comprehensive"],
     "metadata": {
       "difficulty": "hard",
       "estimated_tokens": 2500,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "graphics_path_tracer",
+    "subcategory": "rendering",
+    "prompt": "Create a path tracer (not just ray tracer) that renders a 3D scene with realistic global illumination. Implement materials, lights, and monte carlo sampling for indirect lighting. Use Python or any language you prefer. Make the output as photorealistic as you can - add features like area lights, different materials (diffuse, reflective, glass), depth of field, or other effects. The scene should demonstrate soft shadows, color bleeding, and realistic lighting.",
+    "system_prompt": "You are an expert in computer graphics and rendering algorithms. Build a real path tracer.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must implement path tracing with global illumination, not just ray tracing. Evaluated on correctness, visual quality, and features.",
+    "tags": ["python", "graphics", "rendering", "pathtracing", "comprehensive"],
+    "metadata": {
+      "difficulty": "very_hard",
+      "estimated_tokens": 3500,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "creative_music_tracker",
+    "subcategory": "audio",
+    "prompt": "Create a music tracker/sequencer (like old-school MOD trackers) in HTML or Python. Let users create music by placing notes in a grid, with multiple instruments/channels. Implement playback, sound synthesis, and pattern editing. Make it as feature-rich as you can - consider adding different waveforms, effects (reverb, delay), tempo control, or the ability to export audio. Draw inspiration from trackers like FastTracker or modern tools like Beepbox.",
+    "system_prompt": "You are an expert at creating music software and audio synthesis tools.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must implement pattern sequencing, sound synthesis, and playback. Evaluated on functionality, sound quality, and creative features.",
+    "tags": ["audio", "music", "synthesis", "creative", "comprehensive"],
+    "metadata": {
+      "difficulty": "very_hard",
+      "estimated_tokens": 3000,
       "should_be_complete_app": true
     }
   }

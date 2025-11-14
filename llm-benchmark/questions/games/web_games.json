@@ -2,11 +2,11 @@
   {
     "id": "game_2048_html",
     "subcategory": "puzzle",
-    "prompt": "Create a complete 2048 game in a single HTML file.\n\n**Game mechanics:**\n- 4x4 grid\n- Use arrow keys to slide tiles\n- Tiles with same number merge when they collide\n- New tile (2 or 4) spawns after each move\n- Win condition: reach 2048\n- Game over when no moves possible\n- Score = sum of all merged tiles\n\n**Visual design:**\n- Clean, modern design similar to original\n- Different colors for different tile values\n- Smooth animations when tiles move/merge\n- Display current score and best score (localStorage)\n- New Game button\n- Win/Lose message overlay\n\n**Technical:**\n- Vanilla JavaScript (no frameworks)\n- CSS Grid for layout\n- CSS transitions for animations\n- Responsive design\n\nProvide complete HTML file with embedded CSS and JavaScript.",
-    "system_prompt": "You are an expert web developer who creates polished browser games.",
+    "prompt": "Create a 2048 game in a single HTML file. Implement the classic 2048 mechanics: slide tiles with arrow keys, merge matching numbers, spawn new tiles, and try to reach 2048. Make it as polished and enjoyable as you can - consider adding smooth animations, score tracking, best score persistence, undo moves, different grid sizes, themes, or any other features that would enhance the experience. Build the most satisfying 2048 game possible.",
+    "system_prompt": "You are an expert web developer who creates polished browser games. Build the best 2048 game you can.",
     "expected_output": null,
     "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement complete 2048 game mechanics with proper tile movement, merging, scoring, and win/lose detection. Should have smooth animations.",
+    "evaluation_criteria": "Must implement core 2048 mechanics (tile sliding, merging, spawning). Evaluated on game feel, visual polish, and features added.",
     "tags": ["html", "javascript", "game", "puzzle", "comprehensive"],
     "metadata": {
       "difficulty": "hard",
@@ -15,32 +15,47 @@
     }
   },
   {
-    "id": "game_platformer_canvas",
-    "subcategory": "platformer",
-    "prompt": "Create a simple platformer game using HTML5 Canvas.\n\n**Features:**\n- Player character (rectangle) can move left/right and jump\n- 3-5 platforms at different heights\n- Gravity and jump physics\n- Collectible items (coins) scattered around\n- Enemies that move back and forth on platforms\n- Lives system (3 lives)\n- Win condition: collect all coins\n- Lose condition: lose all lives\n\n**Controls:**\n- A/D or Arrow keys: move left/right\n- W or Space: jump\n- R: restart game\n\n**Visual:**\n- Player: blue square\n- Platforms: brown rectangles\n- Coins: yellow circles\n- Enemies: red squares\n- Background: sky blue gradient\n\n**Physics:**\n- Smooth movement\n- Realistic jump arc\n- Collision detection with platforms\n- Enemy collision removes a life\n\nProvide complete HTML with Canvas code.",
-    "system_prompt": "You are an expert at creating Canvas-based games with physics.",
+    "id": "viz_3d_historical_scene",
+    "subcategory": "3d_visualization",
+    "prompt": "Create a full 3D model and interactive visualization of a historic building, landmark, or scene that runs in a browser using WebGL (Three.js, Babylon.js, or raw WebGL). Build a complete 3D representation - not just simple shapes, but an actual detailed model with proper geometry, materials, and textures. Choose something cool and iconic: ancient architecture (Colosseum, Pyramids, Parthenon), famous structures (Eiffel Tower, Tower Bridge), historical scenes, or other impressive subjects. Make it as visually stunning and feature-rich as you can - add orbital camera controls, realistic lighting, textures, animations (flags waving, water flowing, people moving, etc.), interactive elements, information displays, day/night cycle, or atmospheric effects. Build something truly impressive.",
+    "system_prompt": "You are an expert at creating detailed 3D models and WebGL visualizations. Build the most impressive full 3D scene you can.",
     "expected_output": null,
-    "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement platformer physics (gravity, jumping), collision detection, enemy AI, collectibles, and win/lose conditions.",
-    "tags": ["html", "canvas", "game", "platformer", "physics", "comprehensive"],
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must implement detailed 3D model (not just basic shapes) with camera controls and realistic rendering. Evaluated on model complexity, visual quality, animations, and wow factor.",
+    "tags": ["html", "webgl", "3d", "modeling", "visualization", "animation", "comprehensive"],
     "metadata": {
       "difficulty": "very_hard",
-      "estimated_tokens": 2500,
+      "estimated_tokens": 3500,
       "should_be_complete_app": true
     }
   },
   {
-    "id": "game_pong_html",
-    "subcategory": "arcade",
-    "prompt": "Create a Pong game in a single HTML file.\n\n**Features:**\n- Two paddles (left and right)\n- Ball bounces between paddles\n- Score tracking (first to 5 wins)\n- Two game modes:\n  - 2-player: W/S for left paddle, ↑/↓ for right paddle\n  - 1-player vs AI: AI paddle follows ball\n\n**Visual:**\n- Classic Pong aesthetic (white on black)\n- Centered dashed line\n- Score display at top\n- Start screen to choose mode\n- Win screen showing winner\n\n**Game mechanics:**\n- Ball speed increases slightly after each hit\n- Paddle can influence ball direction based on where it hits\n- Ball resets to center after each point\n- Smooth 60 FPS animation\n\n**AI behavior:**\n- Moves toward ball's Y position\n- Slight delay for realistic difficulty\n\nProvide complete HTML file.",
-    "system_prompt": "You are an expert at recreating classic arcade games.",
+    "id": "viz_3d_bird_forest",
+    "subcategory": "3d_animation",
+    "prompt": "Create an animated 3D scene of a bird flying over a forest using WebGL (Three.js, Babylon.js, or raw WebGL) in the browser. Build a complete scene with a 3D forest environment and an animated bird flying through it. Make it as beautiful and immersive as you can - consider adding realistic bird flight animation, detailed forest with trees and terrain, camera that follows the bird, wind effects, particle effects, lighting, shadows, multiple birds, forest sounds, or other atmospheric elements. Create something captivating and cinematic.",
+    "system_prompt": "You are an expert at creating 3D animations and natural scenes. Build the most beautiful bird flying scene you can.",
     "expected_output": null,
-    "evaluation_type": "code_execution",
-    "evaluation_criteria": "Must implement complete Pong mechanics with both game modes, collision detection, scoring, and basic AI.",
-    "tags": ["html", "canvas", "game", "arcade", "ai", "comprehensive"],
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must implement 3D forest scene with animated bird flight. Evaluated on animation quality, scene detail, visual beauty, and overall atmosphere.",
+    "tags": ["html", "webgl", "3d", "animation", "nature", "comprehensive"],
     "metadata": {
-      "difficulty": "medium",
-      "estimated_tokens": 1500,
+      "difficulty": "very_hard",
+      "estimated_tokens": 3500,
+      "should_be_complete_app": true
+    }
+  },
+  {
+    "id": "game_multiplayer_realtime",
+    "subcategory": "multiplayer",
+    "prompt": "Create a real-time multiplayer game with WebSocket-based client-server architecture. Build both a Node.js/Python server and HTML client. Implement a simple multiplayer game - you choose what kind (Snake, top-down shooter, racing, etc.). Multiple players should be able to connect and play together with synchronized state. Make it as polished as you can - consider adding lobbies, player names, chat, spectator mode, or other features that would make a great multiplayer experience.",
+    "system_prompt": "You are an expert at network programming and multiplayer game architecture. Build the best real-time multiplayer game you can.",
+    "expected_output": null,
+    "evaluation_type": "llm_judge",
+    "evaluation_criteria": "Must implement WebSocket client-server networking, real-time state synchronization, and working multiplayer gameplay for 2+ players. Evaluated on network handling, gameplay, and features.",
+    "tags": ["javascript", "networking", "multiplayer", "websocket", "game", "comprehensive"],
+    "metadata": {
+      "difficulty": "very_hard",
+      "estimated_tokens": 3500,
       "should_be_complete_app": true
     }
   }
