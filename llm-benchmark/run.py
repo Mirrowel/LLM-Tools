@@ -8,6 +8,7 @@ Usage:
     python run.py --config custom.yaml  # Use custom config file
     python run.py --help             # Show help
 """
+
 import argparse
 import asyncio
 import os
@@ -39,14 +40,14 @@ Configuration:
 Examples:
   python run.py                       # Run with default config.yaml
   python run.py --config custom.yaml  # Use custom config file
-        """
+        """,
     )
 
     parser.add_argument(
         "--config",
         type=str,
         default="config.yaml",
-        help="Path to configuration file (default: config.yaml)"
+        help="Path to configuration file (default: config.yaml)",
     )
 
     return parser.parse_args()
@@ -68,9 +69,9 @@ async def main():
         print(f"\n❌ Configuration Error: {e}\n")
         return
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("LLM Benchmark System")
-    print("="*60)
+    print("=" * 60)
     print(f"\nConfiguration: {args.config}")
     print(f"Models: {', '.join(config.models)}")
     print(f"Judge: {config.judge_model}")
@@ -92,7 +93,9 @@ async def main():
 
     if not api_keys:
         print("❌ ERROR: No provider API keys found in environment variables.")
-        print("Please set API keys in your .env file (e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY)")
+        print(
+            "Please set API keys in your .env file (e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY)"
+        )
         print("\nExample .env file:")
         print("  OPENAI_API_KEY=sk-...")
         print("  ANTHROPIC_API_KEY=sk-ant-...")
@@ -103,7 +106,7 @@ async def main():
     client = RotatingClient(
         api_keys=dict(api_keys),
         max_retries=config.max_retries_per_key,
-        global_timeout=config.global_timeout
+        global_timeout=config.global_timeout,
     )
 
     try:
@@ -115,8 +118,9 @@ async def main():
             results_dir=config.results_dir,
             model_system_instructions=config.all_model_system_instructions,
             model_options=config.all_model_options,
+            model_system_instruction_positions=config.all_model_system_instruction_positions,
             code_formatting_enabled=config.code_formatting_enabled,
-            code_formatting_instruction=config.code_formatting_instruction
+            code_formatting_instruction=config.code_formatting_instruction,
         )
 
         run_id = await runner.run_benchmark(
@@ -124,7 +128,7 @@ async def main():
             categories=config.categories,
             question_ids=config.question_ids,
             max_concurrent=config.max_concurrent,
-            provider_concurrency=config.provider_concurrency
+            provider_concurrency=config.provider_concurrency,
         )
 
         print(f"\n✅ Benchmark complete! Run ID: {run_id}")

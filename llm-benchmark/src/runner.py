@@ -1,13 +1,20 @@
 """
 Main benchmark runner for executing benchmarks and collecting results.
 """
+
 import asyncio
 import time
 import json
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    BarColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.table import Table
 
 from lib.rotator_library.client import RotatingClient
@@ -30,14 +37,18 @@ class BenchmarkRunner:
         results_dir: str = "results",
         model_system_instructions: Optional[Dict[str, str]] = None,
         model_options: Optional[Dict[str, Dict[str, Any]]] = None,
+        model_system_instruction_positions: Optional[Dict[str, str]] = None,
         code_formatting_enabled: bool = True,
-        code_formatting_instruction: Optional[str] = None
+        code_formatting_instruction: Optional[str] = None,
     ):
         self.client = client
         self.judge_model = judge_model
         self.console = Console()
         self.model_system_instructions = model_system_instructions or {}
         self.model_options = model_options or {}
+        self.model_system_instruction_positions = (
+            model_system_instruction_positions or {}
+        )
         self.code_formatting_enabled = code_formatting_enabled
         self.code_formatting_instruction = code_formatting_instruction
 
@@ -57,7 +68,7 @@ class BenchmarkRunner:
         categories: Optional[List[str]] = None,
         question_ids: Optional[List[str]] = None,
         max_concurrent: int = 3,
-        provider_concurrency: Optional[Dict[str, int]] = None
+        provider_concurrency: Optional[Dict[str, int]] = None,
     ) -> str:
         """
         Run a complete benchmark.
@@ -97,9 +108,9 @@ class BenchmarkRunner:
         # Run benchmarks for each model (each gets its own run)
         run_ids = []
         for model in models:
-            self.console.print(f"[bold cyan]{'='*60}[/bold cyan]")
+            self.console.print(f"[bold cyan]{'=' * 60}[/bold cyan]")
             self.console.print(f"[bold cyan]Starting Run for: {model}[/bold cyan]")
-            self.console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+            self.console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
 
             # Create run for this model
             run_id = self.results_manager.create_run(
@@ -109,8 +120,8 @@ class BenchmarkRunner:
                 judge_model=self.judge_model,
                 config={
                     "max_concurrent": max_concurrent,
-                    "timestamp": datetime.now().isoformat()
-                }
+                    "timestamp": datetime.now().isoformat(),
+                },
             )
 
             self.console.print(f"[bold green]Run ID: {run_id}[/bold green]\n")
@@ -121,7 +132,9 @@ class BenchmarkRunner:
             model_concurrency = max_concurrent
             if provider_concurrency and provider in provider_concurrency:
                 model_concurrency = provider_concurrency[provider]
-                self.console.print(f"[dim]Using provider-specific concurrency: {model_concurrency} for {provider}[/dim]\n")
+                self.console.print(
+                    f"[dim]Using provider-specific concurrency: {model_concurrency} for {provider}[/dim]\n"
+                )
 
             # Run benchmark for this model
             await self._run_model_benchmark(model, questions, model_concurrency)
@@ -135,13 +148,17 @@ class BenchmarkRunner:
                 entry = leaderboard[model]
                 self.console.print(f"\n[bold]Results for {model}:[/bold]")
                 self.console.print(f"  Score: {entry['overall_score']:.1f}/100")
-                self.console.print(f"  Passed: {entry['passed_questions']}/{entry['total_questions']}")
-                if entry.get('total_cost'):
+                self.console.print(
+                    f"  Passed: {entry['passed_questions']}/{entry['total_questions']}"
+                )
+                if entry.get("total_cost"):
                     self.console.print(f"  Cost: ${entry['total_cost']:.4f}\n")
 
         # Display final summary
         self.console.print(f"\n[bold green]✓ Benchmark complete![/bold green]")
-        self.console.print(f"[green]Completed {len(models)} model(s) with {len(questions)} questions each[/green]")
+        self.console.print(
+            f"[green]Completed {len(models)} model(s) with {len(questions)} questions each[/green]"
+        )
         self.console.print(f"[red]View results: python viewer/server.py[/red]\n")
 
         # Return the last run_id (or all if needed)
@@ -156,15 +173,12 @@ class BenchmarkRunner:
         Returns:
             Provider name like "openai" or "gemini"
         """
-        if '/' in model:
-            return model.split('/')[0]
-        return 'unknown'
+        if "/" in model:
+            return model.split("/")[0]
+        return "unknown"
 
     async def _run_model_benchmark(
-        self,
-        model: str,
-        questions: List[Question],
-        max_concurrent: int
+        self, model: str, questions: List[Question], max_concurrent: int
     ):
         """Run benchmark for a single model.
 
@@ -183,12 +197,11 @@ class BenchmarkRunner:
             BarColumn(),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             TimeElapsedColumn(),
-            console=self.console
+            console=self.console,
         ) as progress:
             # Phase 1: Generate responses
             response_task = progress.add_task(
-                f"[cyan]Generating responses...",
-                total=len(questions)
+                f"[cyan]Generating responses...", total=len(questions)
             )
 
             responses = []
@@ -204,8 +217,7 @@ class BenchmarkRunner:
 
             # Phase 2: Evaluate responses
             eval_task = progress.add_task(
-                f"[yellow]Evaluating responses...",
-                total=len(questions)
+                f"[yellow]Evaluating responses...", total=len(questions)
             )
 
             eval_tasks = []
@@ -223,7 +235,7 @@ class BenchmarkRunner:
         model: str,
         question: Question,
         progress: Progress,
-        task_id: int
+        task_id: int,
     ) -> ModelResponse:
         """Generate a response with concurrency control and retry logic."""
         async with semaphore:
@@ -232,10 +244,7 @@ class BenchmarkRunner:
             return response
 
     async def _generate_response_with_retry(
-        self,
-        model: str,
-        question: Question,
-        max_retries: int = 3
+        self, model: str, question: Question, max_retries: int = 3
     ) -> ModelResponse:
         """Generate a response with retry logic for failures."""
         last_error = None
@@ -247,26 +256,34 @@ class BenchmarkRunner:
                 # Check if response has an error
                 if response.error:
                     last_error = response.error
-                    self.console.print(f"[yellow]⚠️  Attempt {attempt + 1}/{max_retries} failed for {question.id}: {response.error}[/yellow]")
+                    self.console.print(
+                        f"[yellow]⚠️  Attempt {attempt + 1}/{max_retries} failed for {question.id}: {response.error}[/yellow]"
+                    )
 
                     # If not the last attempt, retry after delay
                     if attempt < max_retries - 1:
-                        delay = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
-                        self.console.print(f"[yellow]   Retrying in {delay}s...[/yellow]")
+                        delay = 2**attempt  # Exponential backoff: 1s, 2s, 4s
+                        self.console.print(
+                            f"[yellow]   Retrying in {delay}s...[/yellow]"
+                        )
                         await asyncio.sleep(delay)
                         continue
                 else:
                     # Success!
                     if attempt > 0:
-                        self.console.print(f"[green]✓ Retry successful for {question.id} on attempt {attempt + 1}[/green]")
+                        self.console.print(
+                            f"[green]✓ Retry successful for {question.id} on attempt {attempt + 1}[/green]"
+                        )
                     return response
 
             except Exception as e:
                 last_error = str(e)
-                self.console.print(f"[yellow]⚠️  Attempt {attempt + 1}/{max_retries} failed for {question.id}: {str(e)}[/yellow]")
+                self.console.print(
+                    f"[yellow]⚠️  Attempt {attempt + 1}/{max_retries} failed for {question.id}: {str(e)}[/yellow]"
+                )
 
                 if attempt < max_retries - 1:
-                    delay = 2 ** attempt
+                    delay = 2**attempt
                     self.console.print(f"[yellow]   Retrying in {delay}s...[/yellow]")
                     await asyncio.sleep(delay)
                 else:
@@ -280,20 +297,24 @@ class BenchmarkRunner:
                         full_response={},
                         metrics={},
                         timestamp=datetime.now().isoformat(),
-                        error=f"All {max_retries} attempts failed. Last error: {last_error}"
+                        error=f"All {max_retries} attempts failed. Last error: {last_error}",
                     )
 
         # This should not be reached, but just in case
-        return response if 'response' in locals() else ModelResponse(
-            question_id=question.id,
-            model_name=model,
-            response_text="",
-            reasoning_content=None,
-            tool_calls=None,
-            full_response={},
-            metrics={},
-            timestamp=datetime.now().isoformat(),
-            error=f"All retries exhausted. Last error: {last_error}"
+        return (
+            response
+            if "response" in locals()
+            else ModelResponse(
+                question_id=question.id,
+                model_name=model,
+                response_text="",
+                reasoning_content=None,
+                tool_calls=None,
+                full_response={},
+                metrics={},
+                timestamp=datetime.now().isoformat(),
+                error=f"All retries exhausted. Last error: {last_error}",
+            )
         )
 
     async def _generate_response(self, model: str, question: Question) -> ModelResponse:
@@ -312,19 +333,29 @@ class BenchmarkRunner:
 
             # Build system prompt (combine model-specific instructions with question system prompt)
             system_content_parts = []
+            model_instruction = None
 
-            # Add model-specific system instructions if configured
+            # Get model-specific system instruction and its position
             if model in self.model_system_instructions:
-                system_content_parts.append(self.model_system_instructions[model])
+                model_instruction = self.model_system_instructions[model]
 
             # Add code formatting instructions for code-based questions
             if self.code_formatting_enabled and self.code_formatting_instruction:
                 # Check if this is a code-based question
                 is_code_question = (
-                    question.evaluation_type in ["code_execution", "code_execution_multi_file"] or
-                    question.category in ["games", "web_apps", "visualizations", "simulations", "creative_coding", "cli_tools"] or
-                    "code" in question.tags or
-                    "coding" in question.tags
+                    question.evaluation_type
+                    in ["code_execution", "code_execution_multi_file"]
+                    or question.category
+                    in [
+                        "games",
+                        "web_apps",
+                        "visualizations",
+                        "simulations",
+                        "creative_coding",
+                        "cli_tools",
+                    ]
+                    or "code" in question.tags
+                    or "coding" in question.tags
                 )
                 if is_code_question:
                     system_content_parts.append(self.code_formatting_instruction)
@@ -333,21 +364,24 @@ class BenchmarkRunner:
             if question.system_prompt:
                 system_content_parts.append(question.system_prompt)
 
+            # Add model-specific system instruction based on position setting
+            if model_instruction:
+                position = self.model_system_instruction_positions.get(model, "prepend")
+                if position == "append":
+                    system_content_parts.append(model_instruction)
+                else:  # prepend (default)
+                    system_content_parts.insert(0, model_instruction)
+
             # Add combined system message if we have any system content
             if system_content_parts:
-                messages.append({
-                    "role": "system",
-                    "content": "\n\n".join(system_content_parts)
-                })
+                messages.append(
+                    {"role": "system", "content": "\n\n".join(system_content_parts)}
+                )
 
             messages.append({"role": "user", "content": question.prompt})
 
             # Build request kwargs
-            kwargs = {
-                "model": model,
-                "messages": messages,
-                "stream": True
-            }
+            kwargs = {"model": model, "messages": messages, "stream": True}
 
             # Add model-specific options if configured
             if model in self.model_options:
@@ -360,14 +394,16 @@ class BenchmarkRunner:
                 # Convert tools to proper format
                 tools = []
                 for tool_def in question.tools:
-                    tools.append({
-                        "type": "function",
-                        "function": {
-                            "name": tool_def.name,
-                            "description": tool_def.description,
-                            "parameters": tool_def.parameters
+                    tools.append(
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": tool_def.name,
+                                "description": tool_def.description,
+                                "parameters": tool_def.parameters,
+                            },
                         }
-                    })
+                    )
                 kwargs["tools"] = tools
 
             # Stream response
@@ -393,7 +429,9 @@ class BenchmarkRunner:
                         delta = choices[0].get("delta", {})
 
                         # Track first token
-                        if first_token_time is None and (delta.get("content") or delta.get("reasoning_content")):
+                        if first_token_time is None and (
+                            delta.get("content") or delta.get("reasoning_content")
+                        ):
                             first_token_time = time.time()
 
                         if delta.get("content"):
@@ -419,7 +457,9 @@ class BenchmarkRunner:
 
             if response_text and not reasoning_content:
                 # Only extract if reasoning_content wasn't already set by API
-                cleaned_response_text, extracted_reasoning, reasoning_format = ReasoningExtractor.extract_reasoning(response_text)
+                cleaned_response_text, extracted_reasoning, reasoning_format = (
+                    ReasoningExtractor.extract_reasoning(response_text)
+                )
 
                 if extracted_reasoning:
                     # Use extracted reasoning as the reasoning_content
@@ -439,7 +479,7 @@ class BenchmarkRunner:
                     full_response_obj["choices"][0].pop("delta", None)
                     final_message = {
                         "role": "assistant",
-                        "content": cleaned_response_text  # Use cleaned text without reasoning tags
+                        "content": cleaned_response_text,  # Use cleaned text without reasoning tags
                     }
                     if reasoning_content:
                         final_message["reasoning_content"] = reasoning_content
@@ -454,13 +494,23 @@ class BenchmarkRunner:
             # Calculate metrics
             ttft = (first_token_time - start_time) if first_token_time else 0
             total_latency = end_time - start_time
-            generation_time = (end_time - first_token_time) if first_token_time else total_latency
+            generation_time = (
+                (end_time - first_token_time) if first_token_time else total_latency
+            )
 
             prompt_tokens = usage_data.get("prompt_tokens", 0) if usage_data else 0
-            completion_tokens = usage_data.get("completion_tokens", 0) if usage_data else 0
-            total_tokens = usage_data.get("total_tokens", prompt_tokens + completion_tokens) if usage_data else 0
+            completion_tokens = (
+                usage_data.get("completion_tokens", 0) if usage_data else 0
+            )
+            total_tokens = (
+                usage_data.get("total_tokens", prompt_tokens + completion_tokens)
+                if usage_data
+                else 0
+            )
 
-            tokens_per_second = completion_tokens / generation_time if generation_time > 0 else 0
+            tokens_per_second = (
+                completion_tokens / generation_time if generation_time > 0 else 0
+            )
 
             # Calculate cost
             estimated_cost = CostCalculator.calculate_cost(
@@ -475,7 +525,7 @@ class BenchmarkRunner:
                 "prompt_tokens": prompt_tokens,
                 "completion_tokens": completion_tokens,
                 "total_tokens": total_tokens,
-                "estimated_cost": estimated_cost
+                "estimated_cost": estimated_cost,
             }
 
         except Exception as e:
@@ -492,7 +542,7 @@ class BenchmarkRunner:
             full_response=full_response_obj or {},
             metrics=metrics,
             timestamp=datetime.now().isoformat(),
-            error=error
+            error=error,
         )
 
         # Save response
@@ -506,7 +556,7 @@ class BenchmarkRunner:
         question: Question,
         response: ModelResponse,
         progress: Progress,
-        task_id: int
+        task_id: int,
     ) -> Evaluation:
         """Evaluate a response with concurrency control and retry logic."""
         async with semaphore:
@@ -515,10 +565,7 @@ class BenchmarkRunner:
             return evaluation
 
     async def _evaluate_response_with_retry(
-        self,
-        question: Question,
-        response: ModelResponse,
-        max_retries: int = 3
+        self, question: Question, response: ModelResponse, max_retries: int = 3
     ) -> Evaluation:
         """Evaluate a response with retry logic for failures."""
         last_error = None
@@ -529,32 +576,44 @@ class BenchmarkRunner:
 
                 # Check if evaluation failed (reasoning contains "failed" or score is 0 with error in details)
                 is_failed = (
-                    evaluation.reasoning and "Evaluation failed:" in evaluation.reasoning or
-                    evaluation.details and "evaluation_error" in evaluation.details
+                    evaluation.reasoning
+                    and "Evaluation failed:" in evaluation.reasoning
+                    or evaluation.details
+                    and "evaluation_error" in evaluation.details
                 )
 
                 if is_failed:
                     last_error = evaluation.reasoning
-                    self.console.print(f"[yellow]⚠️  Judge attempt {attempt + 1}/{max_retries} failed for {question.id}: {evaluation.reasoning}[/yellow]")
+                    self.console.print(
+                        f"[yellow]⚠️  Judge attempt {attempt + 1}/{max_retries} failed for {question.id}: {evaluation.reasoning}[/yellow]"
+                    )
 
                     if attempt < max_retries - 1:
-                        delay = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
-                        self.console.print(f"[yellow]   Retrying evaluation in {delay}s...[/yellow]")
+                        delay = 2**attempt  # Exponential backoff: 1s, 2s, 4s
+                        self.console.print(
+                            f"[yellow]   Retrying evaluation in {delay}s...[/yellow]"
+                        )
                         await asyncio.sleep(delay)
                         continue
                 else:
                     # Success!
                     if attempt > 0:
-                        self.console.print(f"[green]✓ Evaluation retry successful for {question.id} on attempt {attempt + 1}[/green]")
+                        self.console.print(
+                            f"[green]✓ Evaluation retry successful for {question.id} on attempt {attempt + 1}[/green]"
+                        )
                     return evaluation
 
             except Exception as e:
                 last_error = str(e)
-                self.console.print(f"[yellow]⚠️  Evaluation attempt {attempt + 1}/{max_retries} failed for {question.id}: {str(e)}[/yellow]")
+                self.console.print(
+                    f"[yellow]⚠️  Evaluation attempt {attempt + 1}/{max_retries} failed for {question.id}: {str(e)}[/yellow]"
+                )
 
                 if attempt < max_retries - 1:
-                    delay = 2 ** attempt
-                    self.console.print(f"[yellow]   Retrying evaluation in {delay}s...[/yellow]")
+                    delay = 2**attempt
+                    self.console.print(
+                        f"[yellow]   Retrying evaluation in {delay}s...[/yellow]"
+                    )
                     await asyncio.sleep(delay)
                 else:
                     # Final attempt failed, create error evaluation
@@ -566,24 +625,33 @@ class BenchmarkRunner:
                         evaluation_type="llm_judge",
                         evaluator_model=self.judge_model,
                         reasoning=f"All {max_retries} evaluation attempts failed. Last error: {last_error}",
-                        details={"retry_exhausted": True, "last_error": str(last_error)},
-                        timestamp=datetime.now().isoformat()
+                        details={
+                            "retry_exhausted": True,
+                            "last_error": str(last_error),
+                        },
+                        timestamp=datetime.now().isoformat(),
                     )
 
         # This should not be reached, but just in case
-        return evaluation if 'evaluation' in locals() else Evaluation(
-            question_id=question.id,
-            model_name=response.model_name,
-            score=0.0,
-            passed=False,
-            evaluation_type="llm_judge",
-            evaluator_model=self.judge_model,
-            reasoning=f"All retries exhausted. Last error: {last_error}",
-            details={"retry_exhausted": True},
-            timestamp=datetime.now().isoformat()
+        return (
+            evaluation
+            if "evaluation" in locals()
+            else Evaluation(
+                question_id=question.id,
+                model_name=response.model_name,
+                score=0.0,
+                passed=False,
+                evaluation_type="llm_judge",
+                evaluator_model=self.judge_model,
+                reasoning=f"All retries exhausted. Last error: {last_error}",
+                details={"retry_exhausted": True},
+                timestamp=datetime.now().isoformat(),
+            )
         )
 
-    async def _evaluate_response(self, question: Question, response: ModelResponse) -> Evaluation:
+    async def _evaluate_response(
+        self, question: Question, response: ModelResponse
+    ) -> Evaluation:
         """
         Evaluate a response based on the question's evaluation type.
         For code execution questions, we run BOTH code executor AND judge separately.
@@ -606,7 +674,11 @@ class BenchmarkRunner:
             evaluation = await self.tool_validator.evaluate(question, response)
         elif question.evaluation_type == "exact_match":
             # Simple exact match evaluation
-            score = 100.0 if response.response_text.strip() == question.expected_output.strip() else 0.0
+            score = (
+                100.0
+                if response.response_text.strip() == question.expected_output.strip()
+                else 0.0
+            )
             evaluation = Evaluation(
                 question_id=question.id,
                 model_name=response.model_name,
@@ -614,11 +686,15 @@ class BenchmarkRunner:
                 passed=score >= 70,
                 evaluation_type="exact_match",
                 reasoning="Exact match comparison",
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
         elif question.evaluation_type == "contains":
             # Simple contains evaluation
-            score = 100.0 if question.expected_output.lower() in response.response_text.lower() else 0.0
+            score = (
+                100.0
+                if question.expected_output.lower() in response.response_text.lower()
+                else 0.0
+            )
             evaluation = Evaluation(
                 question_id=question.id,
                 model_name=response.model_name,
@@ -626,7 +702,7 @@ class BenchmarkRunner:
                 passed=score >= 70,
                 evaluation_type="contains",
                 reasoning="Contains check",
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
         else:
             # Default to LLM judge (for "llm_judge" and any other types)
@@ -644,7 +720,7 @@ class BenchmarkRunner:
         avg_score = sum(e.score for e in evaluations) / total if total > 0 else 0
 
         self.console.print(f"\n[bold]Summary for {model}:[/bold]")
-        self.console.print(f"  Passed: {passed}/{total} ({passed/total*100:.1f}%)")
+        self.console.print(f"  Passed: {passed}/{total} ({passed / total * 100:.1f}%)")
         self.console.print(f"  Average Score: {avg_score:.1f}/100\n")
 
     def _display_leaderboard(self, leaderboard: Dict[str, Any]):
@@ -663,8 +739,10 @@ class BenchmarkRunner:
                 model_name,
                 f"{entry['overall_score']:.1f}",
                 f"{entry['passed_questions']}/{entry['total_questions']}",
-                f"{entry.get('avg_tps', 0):.1f}" if entry.get('avg_tps') else "N/A",
-                CostCalculator.format_cost(entry.get('total_cost', 0)) if entry.get('total_cost') else "N/A"
+                f"{entry.get('avg_tps', 0):.1f}" if entry.get("avg_tps") else "N/A",
+                CostCalculator.format_cost(entry.get("total_cost", 0))
+                if entry.get("total_cost")
+                else "N/A",
             )
 
         self.console.print(table)
