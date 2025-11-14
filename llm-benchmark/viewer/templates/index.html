@@ -1886,148 +1886,92 @@
             const win = window.open('', '_blank', 'width=1000,height=700,menubar=no,toolbar=no,location=no,status=no');
 
             if (win) {
-                win.document.write(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <title>${language} Execution</title>
-                        <style>
-                            body {
-                                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                                padding: 1.5rem;
-                                background: #1a1a1a;
-                                color: #e0e0e0;
-                                margin: 0;
-                            }
-                            h1 {
-                                font-size: 1.5rem;
-                                margin-bottom: 1rem;
-                                border-bottom: 2px solid #3a3a3a;
-                                padding-bottom: 0.5rem;
-                            }
-                            .terminal {
-                                background: #2a2a2a;
-                                border: 1px solid #3a3a3a;
-                                border-radius: 8px;
-                                padding: 1rem;
-                                margin-bottom: 1rem;
-                            }
-                            input, textarea {
-                                width: 100%;
-                                background: #1a1a1a;
-                                border: 1px solid #3a3a3a;
-                                border-radius: 4px;
-                                padding: 0.5rem;
-                                color: #e0e0e0;
-                                font-family: monospace;
-                                box-sizing: border-box;
-                            }
-                            button {
-                                background: #0066cc;
-                                color: white;
-                                border: none;
-                                border-radius: 4px;
-                                padding: 0.5rem 1rem;
-                                cursor: pointer;
-                                font-size: 1rem;
-                                margin-top: 0.5rem;
-                            }
-                            button:hover {
-                                background: #0052a3;
-                            }
-                            .output {
-                                background: #2a2a2a;
-                                border: 1px solid #3a3a3a;
-                                border-radius: 8px;
-                                padding: 1rem;
-                                margin-top: 1rem;
-                                white-space: pre-wrap;
-                            }
-                            label {
-                                display: block;
-                                margin-bottom: 0.5rem;
-                                color: #a0a0a0;
-                                font-size: 0.875rem;
-                            }
-                            .code-display {
-                                display: none;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>${language.toUpperCase()} Interactive Execution</h1>
-                        <div class="terminal">
-                            <label>Arguments:</label>
-                            <input type="text" id="args" placeholder="e.g., --help, add task, etc." />
-                            <label style="margin-top: 1rem;">Stdin:</label>
-                            <textarea id="stdin" rows="3" placeholder="Input data (optional)"></textarea>
-                            <button onclick="runCode()">▶️ Run Code</button>
-                        </div>
-                        <div id="output" class="output" style="display: none;"></div>
-                        <pre id="code" class="code-display">${code}</pre>
-                        <script>
-                            const LANGUAGE = '${language}';
-                            const API_ORIGIN = window.location.origin;
+                const doc = win.document;
+                doc.open();
+                doc.write('<!DOCTYPE html><html><head><title>' + language + ' Execution</title>');
+                doc.write('<style>');
+                doc.write('body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 1.5rem; background: #1a1a1a; color: #e0e0e0; margin: 0; }');
+                doc.write('h1 { font-size: 1.5rem; margin-bottom: 1rem; border-bottom: 2px solid #3a3a3a; padding-bottom: 0.5rem; }');
+                doc.write('.terminal { background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }');
+                doc.write('input, textarea { width: 100%; background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 4px; padding: 0.5rem; color: #e0e0e0; font-family: monospace; box-sizing: border-box; }');
+                doc.write('button { background: #0066cc; color: white; border: none; border-radius: 4px; padding: 0.5rem 1rem; cursor: pointer; font-size: 1rem; margin-top: 0.5rem; }');
+                doc.write('button:hover { background: #0052a3; }');
+                doc.write('.output { background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 8px; padding: 1rem; margin-top: 1rem; white-space: pre-wrap; }');
+                doc.write('label { display: block; margin-bottom: 0.5rem; color: #a0a0a0; font-size: 0.875rem; }');
+                doc.write('.code-display { display: none; }');
+                doc.write('</style></head><body>');
+                doc.write('<h1>' + language.toUpperCase() + ' Interactive Execution</h1>');
+                doc.write('<div class="terminal">');
+                doc.write('<label>Arguments:</label>');
+                doc.write('<input type="text" id="args" placeholder="e.g., --help, add task, etc." />');
+                doc.write('<label style="margin-top: 1rem;">Stdin:</label>');
+                doc.write('<textarea id="stdin" rows="3" placeholder="Input data (optional)"></textarea>');
+                doc.write('<button onclick="runCode()">▶️ Run Code</button>');
+                doc.write('</div>');
+                doc.write('<div id="output" class="output" style="display: none;"></div>');
+                doc.write('<pre id="code" class="code-display"></pre>');
+                doc.close();
 
-                            async function runCode() {
-                                const code = document.getElementById('code').textContent;
-                                const args = document.getElementById('args').value;
-                                const stdin = document.getElementById('stdin').value;
-                                const outputDiv = document.getElementById('output');
+                // Set code after document is closed to avoid template literal issues
+                win.document.getElementById('code').textContent = code;
 
-                                try {
-                                    const response = await fetch(API_ORIGIN + '/api/execute', {
-                                        method: 'POST',
-                                        headers: {'Content-Type': 'application/json'},
-                                        body: JSON.stringify({
-                                            code: code,
-                                            language: LANGUAGE,
-                                            args: args,
-                                            stdin: stdin,
-                                            timeout: 30
-                                        })
-                                    });
+                // Add script functionality
+                win.LANGUAGE = language;
+                win.API_ORIGIN = window.location.origin;
+                win.runCode = async function() {
+                    const code = win.document.getElementById('code').textContent;
+                    const args = win.document.getElementById('args').value;
+                    const stdin = win.document.getElementById('stdin').value;
+                    const outputDiv = win.document.getElementById('output');
 
-                                    const data = await response.json();
-                                    outputDiv.style.display = 'block';
-                                    let html = '';
+                    try {
+                        const response = await fetch(win.API_ORIGIN + '/api/execute', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                code: code,
+                                language: win.LANGUAGE,
+                                args: args,
+                                stdin: stdin,
+                                timeout: 30
+                            })
+                        });
 
-                                    html += '<div style="color: #a0a0a0; margin-bottom: 0.75rem; font-size: 0.875rem;"><strong>Executed:</strong> ';
-                                    if (LANGUAGE === 'python') {
-                                        html += 'python script.py ' + args;
-                                    } else if (LANGUAGE === 'rust') {
-                                        html += 'cargo run -- ' + args;
-                                    } else {
-                                        html += LANGUAGE + ' ' + args;
-                                    }
-                                    html += '</div>';
+                        const data = await response.json();
+                        outputDiv.style.display = 'block';
+                        let html = '';
 
-                                    if (data.stdout) {
-                                        html += '<div style="color: #4ade80; margin-bottom: 0.5rem;"><strong>Output:</strong></div>';
-                                        html += '<pre style="margin: 0; color: #e0e0e0;">' + data.stdout + '</pre>';
-                                    }
+                        html += '<div style="color: #a0a0a0; margin-bottom: 0.75rem; font-size: 0.875rem;"><strong>Executed:</strong> ';
+                        if (win.LANGUAGE === 'python') {
+                            html += 'python script.py ' + args;
+                        } else if (win.LANGUAGE === 'rust') {
+                            html += 'cargo run -- ' + args;
+                        } else {
+                            html += win.LANGUAGE + ' ' + args;
+                        }
+                        html += '</div>';
 
-                                    if (data.stderr) {
-                                        if (html) html += '<div style="margin: 1rem 0; border-top: 1px solid #3a3a3a;"></div>';
-                                        html += '<div style="color: #f87171; margin-bottom: 0.5rem;"><strong>Errors:</strong></div>';
-                                        html += '<pre style="margin: 0; color: #f87171;">' + data.stderr + '</pre>';
-                                    }
+                        if (data.stdout) {
+                            html += '<div style="color: #4ade80; margin-bottom: 0.5rem;"><strong>Output:</strong></div>';
+                            html += '<pre style="margin: 0; color: #e0e0e0;">' + data.stdout + '</pre>';
+                        }
 
-                                    if (!data.stdout && !data.stderr) {
-                                        html = '<div style="color: #a0a0a0;">No output</div>';
-                                    }
+                        if (data.stderr) {
+                            if (html) html += '<div style="margin: 1rem 0; border-top: 1px solid #3a3a3a;"></div>';
+                            html += '<div style="color: #f87171; margin-bottom: 0.5rem;"><strong>Errors:</strong></div>';
+                            html += '<pre style="margin: 0; color: #f87171;">' + data.stderr + '</pre>';
+                        }
 
-                                    outputDiv.innerHTML = html;
-                                } catch (error) {
-                                    outputDiv.style.display = 'block';
-                                    outputDiv.innerHTML = '<div style="color: #f87171;"><strong>Error:</strong> ' + error.message + '</div>';
-                                }
-                            }
-                        </script>
-                    </body>
-                    </html>
-                `);
-                win.document.close();
+                        if (!data.stdout && !data.stderr) {
+                            html = '<div style="color: #a0a0a0;">No output</div>';
+                        }
+
+                        outputDiv.innerHTML = html;
+                    } catch (error) {
+                        outputDiv.style.display = 'block';
+                        outputDiv.innerHTML = '<div style="color: #f87171;"><strong>Error:</strong> ' + error.message + '</div>';
+                    }
+                };
             }
         }
 
