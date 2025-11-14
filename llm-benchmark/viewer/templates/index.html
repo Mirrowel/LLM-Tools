@@ -55,7 +55,7 @@
         /* Header */
         .header {
             background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-            padding: 2rem 2rem 3rem;
+            padding: 0.75rem 2rem 1rem;
             position: relative;
             overflow: hidden;
         }
@@ -81,25 +81,25 @@
         .logo {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
+            gap: 0.75rem;
+            margin-bottom: 0;
         }
 
         .logo-icon {
-            width: 56px;
-            height: 56px;
+            width: 40px;
+            height: 40px;
             background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(10px);
-            border-radius: 16px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
+            font-size: 1.5rem;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
         }
 
         h1 {
-            font-size: 2.5rem;
+            font-size: 1.75rem;
             font-weight: 800;
             letter-spacing: -0.02em;
             text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -723,6 +723,12 @@
             const backBtn = document.getElementById('backBtn');
             const homeBtn = document.getElementById('homeBtn');
 
+            // Safety check - elements might not exist yet
+            if (!backBtn || !homeBtn) {
+                console.warn('Navigation buttons not found in DOM yet');
+                return;
+            }
+
             // Show back button if we have history
             if (navigationHistory.length > 0) {
                 backBtn.style.display = 'block';
@@ -782,7 +788,16 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadUnifiedLeaderboard();
+            console.log('DOM loaded, initializing...');
+            try {
+                await loadUnifiedLeaderboard();
+                console.log('Leaderboard loaded successfully');
+            } catch (error) {
+                console.error('Fatal error during initialization:', error);
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                document.getElementById('mainContent').innerHTML = '<div style="background: var(--danger-bg); border: 1px solid var(--danger); border-radius: 8px; padding: 2rem; margin: 2rem;"><h2>❌ Error</h2><p>Failed to initialize: ' + error.message + '</p><p>Check the browser console for details.</p></div>';
+            }
         });
 
         // Async operations and notifications
@@ -881,21 +896,33 @@
 
         // Load global leaderboard
         async function loadUnifiedLeaderboard() {
+            console.log('Loading unified leaderboard...');
             showLoading();
             try {
+                console.log('Fetching /api/leaderboard/unified...');
                 const response = await fetch('/api/leaderboard/unified');
+                console.log('Fetch complete, status:', response.status);
+
                 if (!response.ok) {
                     throw new Error(`Server returned ${response.status}: ${response.statusText}`);
                 }
+
+                console.log('Parsing JSON response...');
                 const data = await response.json();
+                console.log('Data received:', data);
+
                 leaderboardData = data.leaderboard || {};
+                console.log('Displaying leaderboard...');
                 displayUnifiedLeaderboard(data.leaderboard || {});
+
                 document.getElementById('breadcrumb').textContent = '📊 Global Leaderboard';
 
                 // Update navigation state (home view, clear history)
                 navigationHistory = [];
                 currentView = {view: 'home', data: {}};
+                console.log('Updating navigation...');
                 updateNavigation();
+                console.log('Leaderboard load complete');
             } catch (error) {
                 console.error('Error loading leaderboard:', error);
                 // Show error but also show empty state
@@ -914,6 +941,7 @@
 
         // Display global leaderboard
         function displayUnifiedLeaderboard(leaderboard) {
+            console.log('displayUnifiedLeaderboard called with:', leaderboard);
             const content = document.getElementById('mainContent');
             content.style.display = 'block';
             document.getElementById('loadingMessage').style.display = 'none';
@@ -924,6 +952,7 @@
 
             // Check if leaderboard is empty
             if (!leaderboard || Object.keys(leaderboard).length === 0) {
+                console.log('Leaderboard is empty, showing empty state');
                 html += '<div class="info-banner" style="background: var(--warning-bg); border-color: var(--warning); margin: 2rem 0;">';
                 html += '<strong>📊 No Results Yet</strong><br>';
                 html += 'No benchmark runs have been completed yet. Run a benchmark to see results here.<br><br>';
@@ -1106,15 +1135,15 @@
         }
 
         // View specific response with evaluations
-        async function viewResponse(modelName, questionId, runId, useFixed = false) {
+        async function viewResponse(modelName, questionId, runId, useFixed = false, version = null) {
             if (!runId) return;
 
-            // Try to use cached data first
+            // Try to use cached data first (only if no specific version requested)
             const cacheKey = `${runId}_${modelName}`;
             const cached = dataCache.runs[cacheKey];
             let data;
 
-            if (cached && cached.questions[questionId] && cached.responses[questionId]) {
+            if (!version && cached && cached.questions[questionId] && cached.responses[questionId]) {
                 // Use cached data - instant display
                 data = {
                     question: cached.questions[questionId],
@@ -1130,7 +1159,10 @@
                 // Fetch from API
                 showLoading();
                 try {
-                    const url = `/api/runs/${runId}/models/${encodeURIComponent(modelName)}/questions/${questionId}?use_fixed=${useFixed}`;
+                    let url = `/api/runs/${runId}/models/${encodeURIComponent(modelName)}/questions/${questionId}?use_fixed=${useFixed}`;
+                    if (version) {
+                        url += `&version=${encodeURIComponent(version)}`;
+                    }
                     const response = await fetch(url);
                     data = await response.json();
                 } catch (error) {
@@ -1139,7 +1171,11 @@
                 }
             }
 
+            try {
                 let html = '';
+
+                // Version selector (will be populated via AJAX)
+                html += '<div id="version-selector-' + escapeHtml(questionId) + '" style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;"></div>';
 
                 // Header
                 html += '<div class="response-header">';
@@ -1148,13 +1184,17 @@
                 html += '<p style="color: var(--text-secondary); margin-top: 0.5rem;"><strong>' + escapeHtml(data.question.id) + '</strong></p>';
                 html += '</div>';
                 html += '<div class="response-actions">';
-                html += '<button class="btn btn-primary" onclick="reEvaluateResponse(\'' + escapeHtml(modelName) + '\', \'' + questionId + '\', \'' + runId + '\')">🔄 Re-Evaluate</button>';
+                html += '<button class="btn btn-primary" onclick="regenerateResponse(\'' + escapeHtml(modelName) + '\', \'' + questionId + '\', \'' + runId + '\')">🔄 Regenerate Response & Evaluate</button>';
+                html += '<button class="btn" onclick="reEvaluateResponse(\'' + escapeHtml(modelName) + '\', \'' + questionId + '\', \'' + runId + '\')">📊 Re-Evaluate Only</button>';
                 // Add Fix Response button for code-based questions
                 if (data.question.evaluation_type === 'code_execution' || data.question.evaluation_type === 'code_execution_multi_file') {
                     html += '<button class="btn" onclick="fixResponse(\'' + escapeHtml(modelName) + '\', \'' + questionId + '\', \'' + runId + '\')">🔧 Fix Response</button>';
                 }
                 html += '</div>';
                 html += '</div>';
+
+                // Load versions asynchronously
+                setTimeout(() => loadVersionSelector(modelName, questionId, runId), 100);
 
                 // Two-column layout for better horizontal space usage
                 html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem;">';
@@ -1207,6 +1247,7 @@
 
                 // Artifact or Code Execution
                 if (data.artifact) {
+                    // Server-provided artifact (HTML or multi-file)
                     html += '<div class="artifact-viewer">';
                     html += '<h3 class="card-title">🎨 Generated Application</h3>';
                     if (data.artifact_type === 'multi_file') {
@@ -1216,34 +1257,110 @@
                         html += '<iframe class="artifact-iframe" sandbox="allow-scripts allow-same-origin" srcdoc="' + escapeHtml(data.artifact) + '"></iframe>';
                     }
                     html += '</div>';
-                } else {
-                    // Try to extract Python or JavaScript code for execution
-                    const pythonMatch = data.response.response_text.match(/```python\n([\s\S]*?)```/);
-                    const jsMatch = data.response.response_text.match(/```javascript\n([\s\S]*?)```/);
+                } else if (data.response.response_text) {
+                    // Try to extract code for execution or preview
+                    const codeBlockPattern = /```(\w+)\n([\s\S]*?)```/g;
+                    const codeBlocks = [];
+                    let match;
 
-                    if (pythonMatch || jsMatch) {
-                        const code = pythonMatch ? pythonMatch[1] : jsMatch[1];
-                        const language = pythonMatch ? 'python' : 'javascript';
-                        const codeId = questionId.replace(/[^a-zA-Z0-9]/g, '_');
+                    while ((match = codeBlockPattern.exec(data.response.response_text)) !== null) {
+                        codeBlocks.push({
+                            language: match[1].toLowerCase(),
+                            code: match[2]
+                        });
+                    }
 
-                        html += '<div class="artifact-viewer">';
-                        html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">';
-                        html += '<h3 class="card-title">💻 Code ' + (language === 'python' ? '(Python)' : '(JavaScript)') + '</h3>';
-                        html += '<button class="btn btn-primary" onclick="runCode(\'' + codeId + '\', \'' + language + '\')">▶️ Run Code</button>';
-                        html += '</div>';
-                        html += '<pre id="code-' + codeId + '" style="display: none;">' + escapeHtml(code) + '</pre>';
-                        html += '<div id="output-' + codeId + '" class="code-output" style="display: none; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-top: 1rem;"></div>';
-                        html += '</div>';
+                    if (codeBlocks.length > 0) {
+                        // Process each code block
+                        for (let i = 0; i < codeBlocks.length; i++) {
+                            const block = codeBlocks[i];
+                            const codeId = questionId.replace(/[^a-zA-Z0-9]/g, '_') + '_' + i;
+
+                            // HTML gets special preview treatment
+                            if (block.language === 'html') {
+                                html += '<div class="artifact-viewer" id="artifact-' + codeId + '">';
+                                html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">';
+                                html += '<h3 class="card-title">🎨 HTML Preview</h3>';
+                                html += '<button class="btn" onclick="popOutArtifact(\'' + codeId + '\')">🗗 Pop Out</button>';
+                                html += '</div>';
+                                html += '<iframe class="artifact-iframe" sandbox="allow-scripts allow-same-origin" srcdoc="' + escapeHtml(block.code) + '"></iframe>';
+                                html += '</div>';
+                            } else {
+                                // Executable languages get interactive terminal
+                                const executableLangs = ['python', 'javascript', 'js', 'node', 'rust', 'rs', 'go', 'cpp', 'c++', 'c', 'java', 'ruby', 'rb', 'php'];
+
+                                if (executableLangs.includes(block.language)) {
+                                    // Normalize language names
+                                    let normalizedLang = block.language;
+                                    if (normalizedLang === 'js' || normalizedLang === 'node') normalizedLang = 'javascript';
+                                    if (normalizedLang === 'rs') normalizedLang = 'rust';
+                                    if (normalizedLang === 'c++') normalizedLang = 'cpp';
+                                    if (normalizedLang === 'rb') normalizedLang = 'ruby';
+
+                                    const langIcons = {
+                                        'python': '🐍',
+                                        'javascript': '📜',
+                                        'rust': '🦀',
+                                        'go': '🔷',
+                                        'cpp': '⚡',
+                                        'c': '⚡',
+                                        'java': '☕',
+                                        'ruby': '💎',
+                                        'php': '🐘'
+                                    };
+
+                                    const langNames = {
+                                        'python': 'Python',
+                                        'javascript': 'JavaScript',
+                                        'rust': 'Rust',
+                                        'go': 'Go',
+                                        'cpp': 'C++',
+                                        'c': 'C',
+                                        'java': 'Java',
+                                        'ruby': 'Ruby',
+                                        'php': 'PHP'
+                                    };
+
+                                    html += '<div class="artifact-viewer" id="exec-container-' + codeId + '">';
+                                    html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">';
+                                    html += '<h3 class="card-title">' + (langIcons[normalizedLang] || '💻') + ' ' + (langNames[normalizedLang] || normalizedLang.toUpperCase()) + ' Code</h3>';
+                                    html += '<div style="display: flex; gap: 0.5rem;">';
+                                    html += '<button class="btn btn-primary" onclick="runCodeInteractive(\'' + codeId + '\', \'' + normalizedLang + '\')">▶️ Run</button>';
+                                    html += '<button class="btn" onclick="popOutExecution(\'' + codeId + '\', \'' + normalizedLang + '\')">🗗 Pop Out</button>';
+                                    html += '</div>';
+                                    html += '</div>';
+
+                                    // Interactive terminal interface
+                                    html += '<div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">';
+                                    html += '<div style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem; align-items: center;">';
+                                    html += '<label style="color: var(--text-secondary); font-size: 0.875rem; min-width: 80px;">Arguments:</label>';
+                                    html += '<input type="text" id="args-' + codeId + '" placeholder="e.g., --help, add task, etc." style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.5rem; color: var(--text-primary); font-family: monospace;" />';
+                                    html += '</div>';
+                                    html += '<div style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem; align-items: flex-start;">';
+                                    html += '<label style="color: var(--text-secondary); font-size: 0.875rem; min-width: 80px; padding-top: 0.5rem;">Stdin:</label>';
+                                    html += '<textarea id="stdin-' + codeId + '" placeholder="Input data (optional)" rows="3" style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.5rem; color: var(--text-primary); font-family: monospace; resize: vertical;"></textarea>';
+                                    html += '</div>';
+                                    html += '</div>';
+
+                                    html += '<pre id="code-' + codeId + '" style="display: none;">' + escapeHtml(block.code) + '</pre>';
+                                    html += '<div id="output-' + codeId + '" class="code-output" style="display: none; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-top: 1rem;"></div>';
+                                    html += '</div>';
+                                }
+                            }
+                        }
                     }
                 }
 
                 // Response Text
                 html += '<div class="card" style="margin: 0;">';
                 html += '<div class="card-header">';
+                html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
                 html += '<div class="card-title collapsible" onclick="toggleSection(\'response-text\')">💬 Model Response <span id="response-text-toggle">[+]</span></div>';
+                html += '<button class="btn" onclick="popOutResponse(\'' + questionId + '\')" style="font-size: 0.875rem; padding: 0.5rem 1rem;">🗗 Pop Out</button>';
+                html += '</div>';
                 html += '</div>';
                 html += '<div id="response-text" class="collapsible-content">';
-                html += '<div class="code-output">' + escapeHtml(data.response.response_text) + '</div>';
+                html += '<div id="response-content-' + questionId + '" class="code-output">' + escapeHtml(data.response.response_text) + '</div>';
                 html += '</div>';
                 html += '</div>';
 
@@ -1450,6 +1567,99 @@
             return Promise.resolve();
         }
 
+        // Load and display version selector
+        async function loadVersionSelector(modelName, questionId, runId) {
+            try {
+                const response = await fetch(`/api/runs/${runId}/models/${encodeURIComponent(modelName)}/questions/${questionId}/versions`);
+                if (!response.ok) return;
+
+                const data = await response.json();
+                const versions = data.versions || [];
+
+                if (versions.length <= 1) {
+                    // Don't show selector if only one version
+                    return;
+                }
+
+                const selectorDiv = document.getElementById(`version-selector-${questionId}`);
+                if (!selectorDiv) return;
+
+                let html = '<strong style="color: var(--text-primary);">Response Version:</strong>';
+
+                // Add version dropdown
+                html += '<select id="version-select-' + questionId + '" onchange="switchToVersion(\'' + escapeHtml(modelName) + '\', \'' + questionId + '\', \'' + runId + '\', this.value)" style="padding: 0.5rem; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px;">';
+
+                versions.forEach((v, idx) => {
+                    const date = new Date(v.created_at).toLocaleString();
+                    const label = v.is_latest ? `Latest (${date})` : date;
+                    const selected = v.is_latest ? 'selected' : '';
+                    html += `<option value="${v.version}" ${selected}>Version ${idx + 1}: ${label}</option>`;
+                });
+
+                html += '</select>';
+                html += '<span style="color: var(--text-secondary); font-size: 0.875rem;">${versions.length} version(s) available</span>';
+
+                selectorDiv.innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load versions:', error);
+            }
+        }
+
+        // Switch to a specific version
+        async function switchToVersion(modelName, questionId, runId, version) {
+            // Reload the response with the specified version
+            const opId = startOperation('switch-version', `Loading version...`);
+
+            try {
+                await viewResponse(modelName, questionId, runId, false, version);
+                completeOperation(opId, true, 'Version loaded');
+
+                // Reload version selector to update UI
+                setTimeout(() => loadVersionSelector(modelName, questionId, runId), 100);
+            } catch (error) {
+                completeOperation(opId, false, error.message);
+            }
+        }
+
+        // Regenerate response (creates new version)
+        async function regenerateResponse(modelName, questionId, runId) {
+            const opId = startOperation('regenerate', `Regenerating response for ${questionId}`);
+
+            // Run in background
+            (async () => {
+                try {
+                    const response = await fetch(`/api/runs/${runId}/models/${encodeURIComponent(modelName)}/questions/${questionId}/regenerate`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'}
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Regeneration failed');
+                    }
+
+                    const data = await response.json();
+
+                    // Clear cache to force reload
+                    const cacheKey = `${runId}_${modelName}`;
+                    delete dataCache.runs[cacheKey];
+
+                    completeOperation(opId, true, data.message || 'Response regenerated successfully');
+
+                    // Refresh the view to show new version
+                    const currentView = document.getElementById('mainContent').innerHTML;
+                    if (currentView.includes(questionId)) {
+                        await viewResponseCached(modelName, questionId, runId);
+                    }
+                } catch (error) {
+                    completeOperation(opId, false, error.message);
+                }
+            })();
+
+            // Don't block - return immediately
+            return Promise.resolve();
+        }
+
         // Bulk re-evaluate multiple responses
         async function bulkReEvaluate(modelName, runId, questionIds) {
             for (const questionId of questionIds) {
@@ -1515,6 +1725,309 @@
                 completeOperation(opId, false, error.message);
                 outputElement.style.display = 'block';
                 outputElement.innerHTML = '<div style="color: var(--danger);"><strong>Error:</strong> ' + escapeHtml(error.message) + '</div>';
+            }
+        }
+
+        // Run code with interactive arguments and stdin
+        async function runCodeInteractive(codeId, language) {
+            const opId = startOperation('run-code', `Running ${language} code`);
+            const codeElement = document.getElementById('code-' + codeId);
+            const outputElement = document.getElementById('output-' + codeId);
+            const argsElement = document.getElementById('args-' + codeId);
+            const stdinElement = document.getElementById('stdin-' + codeId);
+
+            if (!codeElement) {
+                completeOperation(opId, false, 'Code element not found');
+                return;
+            }
+
+            const code = codeElement.textContent;
+            const args = argsElement ? argsElement.value : '';
+            const stdin = stdinElement ? stdinElement.value : '';
+
+            try {
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        code: code,
+                        language: language,
+                        args: args,
+                        stdin: stdin,
+                        timeout: 30
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Execution request failed');
+                }
+
+                const data = await response.json();
+
+                // Display output
+                outputElement.style.display = 'block';
+                let outputHtml = '';
+
+                // Show command that was executed
+                outputHtml += '<div style="color: var(--text-secondary); margin-bottom: 0.75rem; font-size: 0.875rem;"><strong>Executed:</strong> ';
+                if (language === 'python') {
+                    outputHtml += 'python script.py ' + escapeHtml(args);
+                } else if (language === 'rust') {
+                    outputHtml += 'cargo run -- ' + escapeHtml(args);
+                } else if (language === 'go') {
+                    outputHtml += 'go run main.go ' + escapeHtml(args);
+                } else if (language === 'cpp' || language === 'c') {
+                    outputHtml += './program ' + escapeHtml(args);
+                } else {
+                    outputHtml += language + ' ' + escapeHtml(args);
+                }
+                outputHtml += '</div>';
+
+                if (data.stdout) {
+                    outputHtml += '<div style="color: var(--success); margin-bottom: 0.5rem;"><strong>Output:</strong></div>';
+                    outputHtml += '<pre style="color: var(--text-primary); margin: 0; white-space: pre-wrap;">' + escapeHtml(data.stdout) + '</pre>';
+                }
+
+                if (data.stderr) {
+                    if (outputHtml) outputHtml += '<div style="margin: 1rem 0; border-top: 1px solid var(--border-color);"></div>';
+                    outputHtml += '<div style="color: var(--danger); margin-bottom: 0.5rem;"><strong>Errors:</strong></div>';
+                    outputHtml += '<pre style="color: var(--danger); margin: 0; white-space: pre-wrap;">' + escapeHtml(data.stderr) + '</pre>';
+                }
+
+                if (!data.stdout && !data.stderr) {
+                    outputHtml += '<div style="color: var(--text-secondary);">No output</div>';
+                }
+
+                outputElement.innerHTML = outputHtml;
+
+                completeOperation(opId, data.success, data.success ? 'Code executed successfully' : 'Code execution failed');
+            } catch (error) {
+                completeOperation(opId, false, error.message);
+                outputElement.style.display = 'block';
+                outputElement.innerHTML = '<div style="color: var(--danger);"><strong>Error:</strong> ' + escapeHtml(error.message) + '</div>';
+            }
+        }
+
+        // Pop out response in new window
+        function popOutResponse(questionId) {
+            const contentElement = document.getElementById('response-content-' + questionId);
+            if (!contentElement) return;
+
+            const content = contentElement.textContent;
+            const win = window.open('', '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,status=no');
+
+            if (win) {
+                win.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Response - ${questionId}</title>
+                        <style>
+                            body {
+                                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                                padding: 2rem;
+                                background: #1a1a1a;
+                                color: #e0e0e0;
+                                line-height: 1.6;
+                            }
+                            pre {
+                                white-space: pre-wrap;
+                                word-wrap: break-word;
+                                background: #2a2a2a;
+                                padding: 1rem;
+                                border-radius: 8px;
+                                border: 1px solid #3a3a3a;
+                            }
+                            h1 {
+                                font-size: 1.5rem;
+                                margin-bottom: 1rem;
+                                border-bottom: 2px solid #3a3a3a;
+                                padding-bottom: 0.5rem;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>Model Response: ${questionId}</h1>
+                        <pre>${content}</pre>
+                    </body>
+                    </html>
+                `);
+                win.document.close();
+            }
+        }
+
+        // Pop out HTML artifact in new window
+        function popOutArtifact(codeId) {
+            const artifactElement = document.getElementById('artifact-' + codeId);
+            if (!artifactElement) return;
+
+            const iframe = artifactElement.querySelector('iframe');
+            if (!iframe) return;
+
+            const htmlContent = iframe.getAttribute('srcdoc');
+            const win = window.open('', '_blank', 'width=900,height=700');
+
+            if (win) {
+                win.document.write(htmlContent);
+                win.document.close();
+            }
+        }
+
+        // Pop out execution panel in new window
+        function popOutExecution(codeId, language) {
+            const codeElement = document.getElementById('code-' + codeId);
+            const outputElement = document.getElementById('output-' + codeId);
+
+            if (!codeElement) return;
+
+            const code = codeElement.textContent;
+            const output = outputElement ? outputElement.innerHTML : '';
+
+            const win = window.open('', '_blank', 'width=1000,height=700,menubar=no,toolbar=no,location=no,status=no');
+
+            if (win) {
+                win.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>${language} Execution</title>
+                        <style>
+                            body {
+                                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                                padding: 1.5rem;
+                                background: #1a1a1a;
+                                color: #e0e0e0;
+                                margin: 0;
+                            }
+                            h1 {
+                                font-size: 1.5rem;
+                                margin-bottom: 1rem;
+                                border-bottom: 2px solid #3a3a3a;
+                                padding-bottom: 0.5rem;
+                            }
+                            .terminal {
+                                background: #2a2a2a;
+                                border: 1px solid #3a3a3a;
+                                border-radius: 8px;
+                                padding: 1rem;
+                                margin-bottom: 1rem;
+                            }
+                            input, textarea {
+                                width: 100%;
+                                background: #1a1a1a;
+                                border: 1px solid #3a3a3a;
+                                border-radius: 4px;
+                                padding: 0.5rem;
+                                color: #e0e0e0;
+                                font-family: monospace;
+                                box-sizing: border-box;
+                            }
+                            button {
+                                background: #0066cc;
+                                color: white;
+                                border: none;
+                                border-radius: 4px;
+                                padding: 0.5rem 1rem;
+                                cursor: pointer;
+                                font-size: 1rem;
+                                margin-top: 0.5rem;
+                            }
+                            button:hover {
+                                background: #0052a3;
+                            }
+                            .output {
+                                background: #2a2a2a;
+                                border: 1px solid #3a3a3a;
+                                border-radius: 8px;
+                                padding: 1rem;
+                                margin-top: 1rem;
+                                white-space: pre-wrap;
+                            }
+                            label {
+                                display: block;
+                                margin-bottom: 0.5rem;
+                                color: #a0a0a0;
+                                font-size: 0.875rem;
+                            }
+                            .code-display {
+                                display: none;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${language.toUpperCase()} Interactive Execution</h1>
+                        <div class="terminal">
+                            <label>Arguments:</label>
+                            <input type="text" id="args" placeholder="e.g., --help, add task, etc." />
+                            <label style="margin-top: 1rem;">Stdin:</label>
+                            <textarea id="stdin" rows="3" placeholder="Input data (optional)"></textarea>
+                            <button onclick="runCode()">▶️ Run Code</button>
+                        </div>
+                        <div id="output" class="output" style="display: none;"></div>
+                        <pre id="code" class="code-display">${code}</pre>
+                        <script>
+                            const LANGUAGE = '${language}';
+                            const API_ORIGIN = window.location.origin;
+
+                            async function runCode() {
+                                const code = document.getElementById('code').textContent;
+                                const args = document.getElementById('args').value;
+                                const stdin = document.getElementById('stdin').value;
+                                const outputDiv = document.getElementById('output');
+
+                                try {
+                                    const response = await fetch(API_ORIGIN + '/api/execute', {
+                                        method: 'POST',
+                                        headers: {'Content-Type': 'application/json'},
+                                        body: JSON.stringify({
+                                            code: code,
+                                            language: LANGUAGE,
+                                            args: args,
+                                            stdin: stdin,
+                                            timeout: 30
+                                        })
+                                    });
+
+                                    const data = await response.json();
+                                    outputDiv.style.display = 'block';
+                                    let html = '';
+
+                                    html += '<div style="color: #a0a0a0; margin-bottom: 0.75rem; font-size: 0.875rem;"><strong>Executed:</strong> ';
+                                    if (LANGUAGE === 'python') {
+                                        html += 'python script.py ' + args;
+                                    } else if (LANGUAGE === 'rust') {
+                                        html += 'cargo run -- ' + args;
+                                    } else {
+                                        html += LANGUAGE + ' ' + args;
+                                    }
+                                    html += '</div>';
+
+                                    if (data.stdout) {
+                                        html += '<div style="color: #4ade80; margin-bottom: 0.5rem;"><strong>Output:</strong></div>';
+                                        html += '<pre style="margin: 0; color: #e0e0e0;">' + data.stdout + '</pre>';
+                                    }
+
+                                    if (data.stderr) {
+                                        if (html) html += '<div style="margin: 1rem 0; border-top: 1px solid #3a3a3a;"></div>';
+                                        html += '<div style="color: #f87171; margin-bottom: 0.5rem;"><strong>Errors:</strong></div>';
+                                        html += '<pre style="margin: 0; color: #f87171;">' + data.stderr + '</pre>';
+                                    }
+
+                                    if (!data.stdout && !data.stderr) {
+                                        html = '<div style="color: #a0a0a0;">No output</div>';
+                                    }
+
+                                    outputDiv.innerHTML = html;
+                                } catch (error) {
+                                    outputDiv.style.display = 'block';
+                                    outputDiv.innerHTML = '<div style="color: #f87171;"><strong>Error:</strong> ' + error.message + '</div>';
+                                }
+                            }
+                        </script>
+                    </body>
+                    </html>
+                `);
+                win.document.close();
             }
         }
 

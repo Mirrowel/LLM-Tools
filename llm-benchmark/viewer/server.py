@@ -244,7 +244,8 @@ async def get_run_bulk_data(run_id: str, model_name: str):
         # Get all questions for the categories in this run
         all_questions = {}
         for question in question_loader.questions.values():
-            if question.category in run.categories:
+            # Include questions that match categories OR have null/empty category
+            if not question.category or question.category in run.categories:
                 all_questions[question.id] = question.model_dump()
 
         # Get all responses and evaluations for this model
@@ -312,11 +313,11 @@ async def get_leaderboard(run_id: str):
 
 
 @app.get("/api/runs/{run_id}/models/{model_name:path}/questions/{question_id}")
-async def get_response(run_id: str, model_name: str, question_id: str, use_fixed: bool = False):
-    """Get a specific response with all evaluations."""
+async def get_response(run_id: str, model_name: str, question_id: str, use_fixed: bool = False, version: Optional[str] = None):
+    """Get a specific response with all evaluations, supports version parameter."""
     try:
-        # Get the response (original or fixed)
-        response = results_manager.get_response(run_id, model_name, question_id, use_fixed=use_fixed)
+        # Get the response (original, fixed, or specific version)
+        response = results_manager.get_response(run_id, model_name, question_id, use_fixed=use_fixed, version=version)
         if not response:
             raise HTTPException(status_code=404, detail="Response not found")
 
@@ -535,6 +536,82 @@ async def fix_response_formatting(run_id: str, model_name: str, question_id: str
         raise HTTPException(status_code=500, detail=f"Fix failed: {str(e)}")
 
 
+@app.get("/api/runs/{run_id}/models/{model_name:path}/questions/{question_id}/versions")
+async def list_response_versions(run_id: str, model_name: str, question_id: str):
+    """List all versions of a response for a specific question."""
+    try:
+        versions = results_manager.list_response_versions(run_id, model_name, question_id)
+        return {"versions": versions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/runs/{run_id}/models/{model_name:path}/questions/{question_id}/regenerate")
+async def regenerate_response(run_id: str, model_name: str, question_id: str):
+    """Regenerate response and evaluation for a question (creates new version)."""
+    try:
+        from src.runner import BenchmarkRunner
+        from lib.rotator_library.client import RotatingClient
+
+        # Get question
+        question = question_loader.get_question(question_id)
+        if not question:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        # Get run metadata
+        run = results_manager.get_run(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+
+        # Collect API keys
+        api_keys = defaultdict(list)
+        for key, value in os.environ.items():
+            if (key.endswith("_API_KEY") or "_API_KEY_" in key) and key != "PROXY_API_KEY":
+                parts = key.split("_API_KEY")
+                provider = parts[0].lower()
+                if provider not in api_keys:
+                    api_keys[provider] = []
+                api_keys[provider].append(value)
+
+        if not api_keys:
+            raise HTTPException(status_code=500, detail="No API keys configured")
+
+        client = RotatingClient(api_keys=dict(api_keys))
+
+        # Initialize runner with run configuration
+        judge_model = run.judge_model or "anthropic/claude-3-5-sonnet-20241022"
+        runner = BenchmarkRunner(
+            client=client,
+            judge_model=judge_model,
+            results_dir=str(results_manager.results_dir)
+        )
+
+        # Set the current run directory
+        runner.results_manager.current_run_dir = results_manager.results_dir / run_id
+
+        # Generate new response
+        new_response = await runner._generate_response(model_name, question)
+
+        # Save new versioned response
+        results_manager.current_run_dir = results_manager.results_dir / run_id
+        results_manager.save_response(new_response)  # Will auto-generate new version
+
+        # Evaluate new response
+        evaluation = await runner._evaluate_response(question, new_response)
+
+        return {
+            "success": True,
+            "message": "Response regenerated and evaluated successfully",
+            "response": new_response.model_dump(),
+            "evaluation": evaluation.model_dump() if evaluation else None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Regeneration failed: {str(e)}")
+
+
 @app.get("/api/runs/{run_id}/questions/{question_id}")
 async def get_question_responses(run_id: str, question_id: str):
     """Get model response for a specific question in a run."""
@@ -638,6 +715,8 @@ class ExecuteRequest(BaseModel):
     code: str
     language: str = "python"
     timeout: int = 10
+    args: str = ""  # Command-line arguments
+    stdin: str = ""  # Standard input data
 
 
 @app.post("/api/execute")
@@ -646,21 +725,35 @@ async def execute_code(request: ExecuteRequest):
     import subprocess
     import tempfile
     import os
+    import shlex
 
     try:
         # Create temp directory for execution
         temp_dir = tempfile.mkdtemp(prefix='viewer_exec_')
 
         try:
+            # Parse command-line arguments
+            args_list = []
+            if request.args:
+                try:
+                    args_list = shlex.split(request.args)
+                except ValueError:
+                    # If shlex fails, split by spaces
+                    args_list = request.args.split()
+
             if request.language == "python":
                 # Write code to temp file
                 temp_file = os.path.join(temp_dir, 'script.py')
                 with open(temp_file, 'w', encoding='utf-8') as f:
                     f.write(request.code)
 
+                # Build command with arguments
+                cmd = ['python', temp_file] + args_list
+
                 # Execute
                 result = subprocess.run(
-                    ['python', temp_file],
+                    cmd,
+                    input=request.stdin if request.stdin else None,
                     capture_output=True,
                     text=True,
                     timeout=request.timeout,
@@ -675,15 +768,20 @@ async def execute_code(request: ExecuteRequest):
                     "stderr": result.stderr,
                     "returncode": result.returncode
                 }
+
             elif request.language == "javascript":
                 # Write code to temp file
                 temp_file = os.path.join(temp_dir, 'script.js')
                 with open(temp_file, 'w', encoding='utf-8') as f:
                     f.write(request.code)
 
+                # Build command with arguments
+                cmd = ['node', temp_file] + args_list
+
                 # Execute with node
                 result = subprocess.run(
-                    ['node', temp_file],
+                    cmd,
+                    input=request.stdin if request.stdin else None,
                     capture_output=True,
                     text=True,
                     timeout=request.timeout,
@@ -698,6 +796,278 @@ async def execute_code(request: ExecuteRequest):
                     "stderr": result.stderr,
                     "returncode": result.returncode
                 }
+
+            elif request.language == "rust":
+                # Create Cargo project structure
+                project_dir = os.path.join(temp_dir, 'rust_project')
+                os.makedirs(project_dir)
+                src_dir = os.path.join(project_dir, 'src')
+                os.makedirs(src_dir)
+
+                # Write main.rs
+                main_file = os.path.join(src_dir, 'main.rs')
+                with open(main_file, 'w', encoding='utf-8') as f:
+                    f.write(request.code)
+
+                # Write Cargo.toml
+                cargo_toml = os.path.join(project_dir, 'Cargo.toml')
+                with open(cargo_toml, 'w', encoding='utf-8') as f:
+                    f.write("""[package]
+name = "temp_rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+""")
+
+                # Build command
+                cmd = ['cargo', 'run', '--quiet'] + (['--'] + args_list if args_list else [])
+
+                # Execute
+                result = subprocess.run(
+                    cmd,
+                    input=request.stdin if request.stdin else None,
+                    capture_output=True,
+                    text=True,
+                    timeout=request.timeout,
+                    encoding='utf-8',
+                    errors='replace',
+                    cwd=project_dir
+                )
+
+                return {
+                    "success": result.returncode == 0,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode
+                }
+
+            elif request.language == "go":
+                # Write code to temp file
+                temp_file = os.path.join(temp_dir, 'main.go')
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    f.write(request.code)
+
+                # Build command
+                cmd = ['go', 'run', 'main.go'] + args_list
+
+                # Execute
+                result = subprocess.run(
+                    cmd,
+                    input=request.stdin if request.stdin else None,
+                    capture_output=True,
+                    text=True,
+                    timeout=request.timeout,
+                    encoding='utf-8',
+                    errors='replace',
+                    cwd=temp_dir
+                )
+
+                return {
+                    "success": result.returncode == 0,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode
+                }
+
+            elif request.language in ["cpp", "c++"]:
+                # Write code to temp file
+                temp_file = os.path.join(temp_dir, 'main.cpp')
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    f.write(request.code)
+
+                # Compile
+                output_file = os.path.join(temp_dir, 'program.exe' if os.name == 'nt' else 'program')
+                compile_result = subprocess.run(
+                    ['g++', '-std=c++17', temp_file, '-o', output_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    encoding='utf-8',
+                    errors='replace',
+                    cwd=temp_dir
+                )
+
+                if compile_result.returncode != 0:
+                    return {
+                        "success": False,
+                        "stdout": "",
+                        "stderr": f"Compilation failed:\n{compile_result.stderr}",
+                        "returncode": compile_result.returncode
+                    }
+
+                # Execute
+                cmd = [output_file] + args_list
+                result = subprocess.run(
+                    cmd,
+                    input=request.stdin if request.stdin else None,
+                    capture_output=True,
+                    text=True,
+                    timeout=request.timeout,
+                    encoding='utf-8',
+                    errors='replace',
+                    cwd=temp_dir
+                )
+
+                return {
+                    "success": result.returncode == 0,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode
+                }
+
+            elif request.language == "c":
+                # Write code to temp file
+                temp_file = os.path.join(temp_dir, 'main.c')
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    f.write(request.code)
+
+                # Compile
+                output_file = os.path.join(temp_dir, 'program.exe' if os.name == 'nt' else 'program')
+                compile_result = subprocess.run(
+                    ['gcc', temp_file, '-o', output_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    encoding='utf-8',
+                    errors='replace',
+                    cwd=temp_dir
+                )
+
+                if compile_result.returncode != 0:
+                    return {
+                        "success": False,
+                        "stdout": "",
+                        "stderr": f"Compilation failed:\n{compile_result.stderr}",
+                        "returncode": compile_result.returncode
+                    }
+
+                # Execute
+                cmd = [output_file] + args_list
+                result = subprocess.run(
+                    cmd,
+                    input=request.stdin if request.stdin else None,
+                    capture_output=True,
+                    text=True,
+                    timeout=request.timeout,
+                    encoding='utf-8',
+                    errors='replace',
+                    cwd=temp_dir
+                )
+
+                return {
+                    "success": result.returncode == 0,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode
+                }
+
+            elif request.language == "ruby":
+                # Write code to temp file
+                temp_file = os.path.join(temp_dir, 'script.rb')
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    f.write(request.code)
+
+                # Build command with arguments
+                cmd = ['ruby', temp_file] + args_list
+
+                # Execute
+                result = subprocess.run(
+                    cmd,
+                    input=request.stdin if request.stdin else None,
+                    capture_output=True,
+                    text=True,
+                    timeout=request.timeout,
+                    encoding='utf-8',
+                    errors='replace',
+                    cwd=temp_dir
+                )
+
+                return {
+                    "success": result.returncode == 0,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode
+                }
+
+            elif request.language == "php":
+                # Write code to temp file
+                temp_file = os.path.join(temp_dir, 'script.php')
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    f.write(request.code)
+
+                # Build command with arguments
+                cmd = ['php', temp_file] + args_list
+
+                # Execute
+                result = subprocess.run(
+                    cmd,
+                    input=request.stdin if request.stdin else None,
+                    capture_output=True,
+                    text=True,
+                    timeout=request.timeout,
+                    encoding='utf-8',
+                    errors='replace',
+                    cwd=temp_dir
+                )
+
+                return {
+                    "success": result.returncode == 0,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode
+                }
+
+            elif request.language == "java":
+                # Extract class name from code
+                import re
+                class_match = re.search(r'public\s+class\s+(\w+)', request.code)
+                class_name = class_match.group(1) if class_match else 'Main'
+
+                # Write code to temp file
+                temp_file = os.path.join(temp_dir, f'{class_name}.java')
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    f.write(request.code)
+
+                # Compile
+                compile_result = subprocess.run(
+                    ['javac', f'{class_name}.java'],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    encoding='utf-8',
+                    errors='replace',
+                    cwd=temp_dir
+                )
+
+                if compile_result.returncode != 0:
+                    return {
+                        "success": False,
+                        "stdout": "",
+                        "stderr": f"Compilation failed:\n{compile_result.stderr}",
+                        "returncode": compile_result.returncode
+                    }
+
+                # Execute
+                cmd = ['java', class_name] + args_list
+                result = subprocess.run(
+                    cmd,
+                    input=request.stdin if request.stdin else None,
+                    capture_output=True,
+                    text=True,
+                    timeout=request.timeout,
+                    encoding='utf-8',
+                    errors='replace',
+                    cwd=temp_dir
+                )
+
+                return {
+                    "success": result.returncode == 0,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode
+                }
+
             else:
                 raise HTTPException(status_code=400, detail=f"Unsupported language: {request.language}")
 
