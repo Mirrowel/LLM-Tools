@@ -547,7 +547,11 @@ createApp({
                 indentUnit: 2,
                 tabSize: 2,
                 lineWrapping: true,
+                viewportMargin: Infinity,
             });
+
+            // Set editor height
+            editor.setSize(null, '500px');
 
             editor.on('change', (cm) => {
                 this.configContent = cm.getValue();
