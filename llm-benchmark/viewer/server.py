@@ -9,7 +9,8 @@ import os
 import json
 import shutil
 from pathlib import Path
-from typing import Optional, List, Dict
+from datetime import datetime
+from typing import Optional, List, Dict, Any
 from collections import defaultdict
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
@@ -1159,6 +1160,472 @@ edition = "2021"
             "stderr": str(e),
             "returncode": -1
         }
+
+
+# ============================================================================
+# Comparative Judge API Endpoints
+# ============================================================================
+
+from src.job_runner import get_job_runner
+from src.evaluators.comparative_judge import ComparativeJudgeEvaluator
+
+
+class ComparativeJudgeRequest(BaseModel):
+    """Request body for starting comparative judge job."""
+    run_ids: List[str]
+    question_ids: Optional[List[str]] = None  # If None, use all questions
+
+
+@app.post("/api/comparative-judge/start")
+async def start_comparative_judge(request: ComparativeJudgeRequest):
+    """Start a new comparative judge job."""
+    try:
+        # Get job runner
+        job_runner = get_job_runner(results_manager.results_dir)
+
+        # If no question IDs specified, use all questions
+        question_ids = request.question_ids
+        if not question_ids:
+            question_ids = list(question_loader.questions.keys())
+
+        # Create job
+        job_id = job_runner.create_job(request.run_ids, question_ids)
+
+        # Initialize evaluator
+        from collections import defaultdict
+        api_keys = defaultdict(list)
+        for key, value in os.environ.items():
+            if (key.endswith("_API_KEY") or "_API_KEY_" in key) and key != "PROXY_API_KEY":
+                parts = key.split("_API_KEY")
+                provider = parts[0].lower()
+                if provider not in api_keys:
+                    api_keys[provider] = []
+                api_keys[provider].append(value)
+
+        if not api_keys:
+            raise HTTPException(status_code=500, detail="No API keys configured")
+
+        from lib.rotator_library.client import RotatingClient
+        client_kwargs = {"api_keys": dict(api_keys)}
+        if config:
+            client_kwargs["max_retries"] = config.max_retries_per_key
+            client_kwargs["global_timeout"] = config.global_timeout
+        client = RotatingClient(**client_kwargs)
+
+        judge_model = config.judge_model if config else "anthropic/claude-3-5-sonnet-20241022"
+        evaluator = ComparativeJudgeEvaluator(client, judge_model)
+
+        # Start job in background
+        job_runner.start_job(job_id, evaluator, question_loader, results_manager)
+
+        return {"job_id": job_id, "status": "started"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/comparative-judge/jobs/{job_id}/status")
+async def get_comparative_judge_status(job_id: str):
+    """Get status of a comparative judge job."""
+    try:
+        job_runner = get_job_runner(results_manager.results_dir)
+        job = job_runner.get_job(job_id)
+
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        return job.to_dict()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/comparative-judge/jobs/{job_id}/results")
+async def get_comparative_judge_results(job_id: str):
+    """Get results of a completed comparative judge job."""
+    try:
+        job_runner = get_job_runner(results_manager.results_dir)
+        results = job_runner.load_job_results(job_id)
+
+        if not results:
+            raise HTTPException(status_code=404, detail="Results not found")
+
+        return results
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/comparative-judge/jobs")
+async def get_all_comparative_judge_jobs():
+    """Get all comparative judge jobs."""
+    try:
+        job_runner = get_job_runner(results_manager.results_dir)
+        jobs = job_runner.get_all_jobs()
+
+        return {"jobs": [job.to_dict() for job in jobs]}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/comparative-judge/jobs/{job_id}")
+async def cancel_comparative_judge_job(job_id: str):
+    """Cancel a running comparative judge job."""
+    try:
+        job_runner = get_job_runner(results_manager.results_dir)
+        cancelled = job_runner.cancel_job(job_id)
+
+        if not cancelled:
+            raise HTTPException(status_code=400, detail="Job cannot be cancelled (not found or not running)")
+
+        return {"success": True, "job_id": job_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Human Ratings API Endpoints
+# ============================================================================
+
+class HumanRatingRequest(BaseModel):
+    """Request body for saving human rating."""
+    score: float  # 0-100, supports decimals
+    comment: Optional[str] = None
+
+
+@app.get("/api/runs/{run_id}/human-ratings/{model_name:path}/{question_id}")
+async def get_human_rating(run_id: str, model_name: str, question_id: str):
+    """Get human rating for a specific response."""
+    try:
+        rating_file = results_manager.results_dir / run_id / "human_ratings" / results_manager._sanitize_name(model_name) / f"{question_id}.json"
+
+        if not rating_file.exists():
+            return {"rating": None}
+
+        with open(rating_file, 'r') as f:
+            rating = json.load(f)
+
+        return {"rating": rating}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/runs/{run_id}/human-ratings/{model_name:path}/{question_id}")
+async def save_human_rating(run_id: str, model_name: str, question_id: str, request: HumanRatingRequest):
+    """Save human rating for a specific response."""
+    try:
+        # Validate score range
+        if not 0 <= request.score <= 100:
+            raise HTTPException(status_code=400, detail="Score must be between 0 and 100")
+
+        # Create directory structure
+        ratings_dir = results_manager.results_dir / run_id / "human_ratings" / results_manager._sanitize_name(model_name)
+        ratings_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save rating
+        rating_file = ratings_dir / f"{question_id}.json"
+        rating_data = {
+            "score": request.score,
+            "comment": request.comment,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        with open(rating_file, 'w') as f:
+            json.dump(rating_data, f, indent=2)
+
+        return {"success": True, "rating": rating_data}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/runs/{run_id}/human-ratings/leaderboard")
+async def get_human_ratings_leaderboard(run_id: str):
+    """Get leaderboard based on human ratings for a run."""
+    try:
+        run = results_manager.get_run(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+
+        ratings_dir = results_manager.results_dir / run_id / "human_ratings"
+        if not ratings_dir.exists():
+            return {"leaderboard": []}
+
+        # Collect ratings per model
+        model_ratings = {}
+
+        for model_dir in ratings_dir.iterdir():
+            if not model_dir.is_dir():
+                continue
+
+            model_name = model_dir.name
+            ratings = []
+
+            for rating_file in model_dir.glob("*.json"):
+                with open(rating_file, 'r') as f:
+                    rating_data = json.load(f)
+                    ratings.append(rating_data['score'])
+
+            if ratings:
+                model_ratings[model_name] = {
+                    'average_score': sum(ratings) / len(ratings),
+                    'total_rated': len(ratings),
+                    'min_score': min(ratings),
+                    'max_score': max(ratings)
+                }
+
+        # Build leaderboard
+        leaderboard = [
+            {
+                'model_name': model_name,
+                **data
+            }
+            for model_name, data in model_ratings.items()
+        ]
+
+        # Sort by average score
+        leaderboard.sort(key=lambda x: x['average_score'], reverse=True)
+
+        return {"leaderboard": leaderboard}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Author's Choice API Endpoints
+# ============================================================================
+
+class AuthorsChoiceRequest(BaseModel):
+    """Request body for saving author's choice rankings."""
+    rankings: List[Dict[str, Any]]  # [{model_name, position}, ...]
+
+
+@app.get("/api/authors-choice")
+async def get_authors_choice():
+    """Get author's choice rankings."""
+    try:
+        user_data_dir = Path("user_data")
+        ranking_file = user_data_dir / "authors_choice.json"
+
+        if not ranking_file.exists():
+            return {"rankings": []}
+
+        with open(ranking_file, 'r') as f:
+            data = json.load(f)
+
+        return data
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/authors-choice")
+async def save_authors_choice(request: AuthorsChoiceRequest):
+    """Save author's choice rankings."""
+    try:
+        user_data_dir = Path("user_data")
+        user_data_dir.mkdir(exist_ok=True)
+
+        ranking_file = user_data_dir / "authors_choice.json"
+
+        data = {
+            "rankings": request.rankings,
+            "last_updated": datetime.now().isoformat()
+        }
+
+        with open(ranking_file, 'w') as f:
+            json.dump(data, f, indent=2)
+
+        return {"success": True, "data": data}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Config Editor API Endpoints
+# ============================================================================
+
+class ConfigValidateRequest(BaseModel):
+    """Request body for validating config."""
+    yaml_content: str
+
+
+class ConfigSaveRequest(BaseModel):
+    """Request body for saving config."""
+    yaml_content: str
+
+
+@app.get("/api/config")
+async def get_config():
+    """Get current config.yaml content."""
+    try:
+        # Look for config.yaml in parent directory (project root)
+        config_path = Path(__file__).parent.parent / "config.yaml"
+
+        if not config_path.exists():
+            raise HTTPException(status_code=404, detail=f"config.yaml not found at {config_path}")
+
+        with open(config_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        return {"content": content}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/config/validate")
+async def validate_config(request: ConfigValidateRequest):
+    """Validate YAML config without saving."""
+    try:
+        import yaml
+
+        # Try to parse YAML
+        try:
+            parsed = yaml.safe_load(request.yaml_content)
+        except yaml.YAMLError as e:
+            return {
+                "valid": False,
+                "errors": [f"YAML syntax error: {str(e)}"]
+            }
+
+        # Basic structure validation
+        errors = []
+
+        if not isinstance(parsed, dict):
+            errors.append("Config must be a YAML object/dictionary")
+
+        # Check for required top-level keys
+        if isinstance(parsed, dict):
+            if 'models' not in parsed:
+                errors.append("Missing required key: 'models'")
+            elif not isinstance(parsed['models'], list):
+                errors.append("'models' must be a list")
+
+        if errors:
+            return {"valid": False, "errors": errors}
+
+        return {"valid": True, "errors": []}
+
+    except Exception as e:
+        return {
+            "valid": False,
+            "errors": [f"Validation error: {str(e)}"]
+        }
+
+
+@app.post("/api/config/save")
+async def save_config(request: ConfigSaveRequest):
+    """Save config.yaml with automatic backup."""
+    try:
+        import yaml
+
+        # Use parent directory (project root)
+        project_root = Path(__file__).parent.parent
+        config_path = project_root / "config.yaml"
+
+        # Validate first
+        try:
+            yaml.safe_load(request.yaml_content)
+        except yaml.YAMLError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+
+        # Create backup
+        if config_path.exists():
+            backup_path = project_root / "config.yaml.bak"
+            shutil.copy(config_path, backup_path)
+            backup_created = str(backup_path)
+        else:
+            backup_created = None
+
+        # Save new config
+        with open(config_path, 'w', encoding='utf-8') as f:
+            f.write(request.yaml_content)
+
+        return {
+            "success": True,
+            "backup_path": backup_created,
+            "message": "Config saved successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/config/backups")
+async def get_config_backups():
+    """Get list of config backups."""
+    try:
+        # Look in parent directory (project root)
+        project_root = Path(__file__).parent.parent
+        backup_files = list(project_root.glob("config.yaml.bak*"))
+
+        backups = []
+        for backup_file in backup_files:
+            stat = backup_file.stat()
+            backups.append({
+                "filename": backup_file.name,
+                "size": stat.st_size,
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
+            })
+
+        backups.sort(key=lambda x: x['modified'], reverse=True)
+
+        return {"backups": backups}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/config/restore/{backup_name}")
+async def restore_config(backup_name: str):
+    """Restore config from backup."""
+    try:
+        # Use parent directory (project root)
+        project_root = Path(__file__).parent.parent
+        backup_path = project_root / backup_name
+
+        if not backup_path.exists() or not backup_path.name.startswith("config.yaml.bak"):
+            raise HTTPException(status_code=404, detail="Backup not found")
+
+        config_path = project_root / "config.yaml"
+
+        # Create backup of current config before restoring
+        if config_path.exists():
+            temp_backup = project_root / "config.yaml.bak.temp"
+            shutil.copy(config_path, temp_backup)
+
+        # Restore from backup
+        shutil.copy(backup_path, config_path)
+
+        return {
+            "success": True,
+            "message": f"Config restored from {backup_name}"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Mount static files
