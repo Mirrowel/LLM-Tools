@@ -466,18 +466,19 @@ async def re_evaluate_response(run_id: str, model_name: str, question_id: str):
 
         # Run evaluations based on question type
         evaluations_run = []
+        code_eval = None
 
-        # Always run LLM judge
-        judge_eval = await llm_judge.evaluate(question, response)
-        judge_eval.evaluation_type = "llm_judge"
-        results_manager.save_evaluation(judge_eval)
-        evaluations_run.append("llm_judge")
-
-        # Run code executor for code execution questions
+        # For code execution questions: run code executor FIRST, then pass results to LLM judge
         if question.evaluation_type == "code_execution":
             code_eval = await code_executor.evaluate(question, response)
             results_manager.save_evaluation(code_eval)
             evaluations_run.append("code_execution")
+
+        # Always run LLM judge (with code execution results if available)
+        judge_eval = await llm_judge.evaluate(question, response, code_execution_result=code_eval)
+        judge_eval.evaluation_type = "llm_judge"
+        results_manager.save_evaluation(judge_eval)
+        evaluations_run.append("llm_judge")
 
         return {
             "success": True,
@@ -699,6 +700,19 @@ async def get_categories():
     try:
         categories = question_loader.get_categories()
         return {"categories": categories}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/model-display-names")
+async def get_model_display_names():
+    """Get friendly display names for models from config."""
+    try:
+        if config:
+            display_names = config.model_display_names
+        else:
+            display_names = {}
+        return {"model_display_names": display_names}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
