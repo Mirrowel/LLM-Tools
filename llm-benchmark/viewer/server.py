@@ -705,6 +705,31 @@ async def get_categories():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/categories/detailed")
+async def get_categories_detailed():
+    """Get categories with metadata (question counts, display names)."""
+    try:
+        categories = question_loader.get_categories()
+        category_data = []
+
+        for cat in categories:
+            # Load questions for this category
+            questions = question_loader.load_category(cat)
+
+            # Create display name (convert snake_case to Title Case)
+            display_name = cat.replace('_', ' ').title()
+
+            category_data.append({
+                "name": cat,
+                "display_name": display_name,
+                "question_count": len(questions)
+            })
+
+        return {"categories": category_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/model-display-names")
 async def get_model_display_names():
     """Get friendly display names for models from config."""

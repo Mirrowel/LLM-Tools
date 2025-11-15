@@ -52,6 +52,78 @@ createApp({
             configErrors: [],
             configSaving: false,
             configBackups: [],
+            configTab: 'visual', // 'visual' or 'yaml'
+
+            // Visual Config Editor Data
+            visualConfig: {
+                models: [],
+                model_display_names: {},
+                model_configs: {},
+                judge_model: '',
+                fixer_model: '',
+                categories: [],
+                question_ids: [],
+                max_concurrent: 10,
+                provider_concurrency: {},
+                retry_settings: {
+                    max_retries_per_key: 5,
+                    global_timeout: 180
+                },
+                evaluation: {
+                    pass_threshold: 60,
+                    code_timeout: 10
+                },
+                viewer: {
+                    host: '0.0.0.0',
+                    port: 8000
+                },
+                code_formatting_instructions: {
+                    enabled: true,
+                    instruction: ''
+                },
+                questions_dir: 'questions',
+                results_dir: 'results'
+            },
+
+            // Judge & Fixer model configs (separate from test models)
+            judgeModelConfig: {
+                system_instruction: '',
+                system_instruction_position: 'prepend',
+                options: {}
+            },
+            fixerModelConfig: {
+                system_instruction: '',
+                system_instruction_position: 'prepend',
+                options: {}
+            },
+            judgeModelOptionsJSON: '',
+            fixerModelOptionsJSON: '',
+
+            // Model editor UI state
+            showAddModel: false,
+            showAddProvider: false,
+            modelSearchQuery: '',
+            expandedModels: {},
+            editingModelConfigs: {},
+            editingModelOptionsJSON: {},
+            newModel: {
+                id: '',
+                displayName: '',
+                systemInstruction: '',
+                position: 'prepend',
+                optionsJSON: ''
+            },
+            newProvider: {
+                name: '',
+                limit: 1
+            },
+
+            // Categories
+            availableCategories: [],
+            questionIdsText: '',
+
+            // JSON validation errors
+            jsonErrors: {}
         };
     },
 
@@ -72,6 +144,17 @@ createApp({
             const models = new Set();
             this.runs.forEach(run => models.add(run.model));
             return Array.from(models).sort();
+        },
+
+        filteredModels() {
+            // Filter models based on search query
+            const query = this.modelSearchQuery.toLowerCase();
+            if (!query) return this.visualConfig.models;
+            return this.visualConfig.models.filter(model => {
+                const displayName = this.visualConfig.model_display_names[model] || '';
+                return model.toLowerCase().includes(query) ||
+                       displayName.toLowerCase().includes(query);
+            });
         }
     },
 
@@ -83,7 +166,40 @@ createApp({
         showConfigModal(show) {
             if (show) {
                 this.loadConfig();
+                this.loadCategoriesDetailed();
             }
+        },
+
+        visualConfig: {
+            handler() {
+                // Sync visual config to YAML in real-time
+                if (this.configTab === 'visual') {
+                    this.syncVisualToYaml();
+                }
+            },
+            deep: true
+        },
+
+        judgeModelConfig: {
+            handler() {
+                this.syncJudgeFixerToVisualConfig();
+            },
+            deep: true
+        },
+
+        fixerModelConfig: {
+            handler() {
+                this.syncJudgeFixerToVisualConfig();
+            },
+            deep: true
+        },
+
+        questionIdsText(val) {
+            // Parse comma-separated question IDs
+            this.visualConfig.question_ids = val
+                .split(',')
+                .map(id => id.trim())
+                .filter(id => id);
         }
     },
 
@@ -517,6 +633,67 @@ createApp({
                 const data = await response.json();
                 this.configContent = data.content || '';
 
+                // Parse YAML for visual editor
+                try {
+                    const parsed = jsyaml.load(this.configContent);
+                    this.visualConfig = {
+                        models: parsed.models || [],
+                        model_display_names: parsed.model_display_names || {},
+                        model_configs: parsed.model_configs || {},
+                        judge_model: parsed.judge_model || '',
+                        fixer_model: parsed.fixer_model || '',
+                        categories: parsed.categories || [],
+                        question_ids: parsed.question_ids || [],
+                        max_concurrent: parsed.max_concurrent || 10,
+                        provider_concurrency: parsed.provider_concurrency || {},
+                        retry_settings: parsed.retry_settings || { max_retries_per_key: 5, global_timeout: 180 },
+                        evaluation: parsed.evaluation || { pass_threshold: 60, code_timeout: 10 },
+                        viewer: parsed.viewer || { host: '0.0.0.0', port: 8000 },
+                        code_formatting_instructions: parsed.code_formatting_instructions || { enabled: true, instruction: '' },
+                        questions_dir: parsed.questions_dir || 'questions',
+                        results_dir: parsed.results_dir || 'results'
+                    };
+
+                    // Populate judge and fixer configs from model_configs
+                    if (this.visualConfig.judge_model && this.visualConfig.model_configs[this.visualConfig.judge_model]) {
+                        const jc = this.visualConfig.model_configs[this.visualConfig.judge_model];
+                        this.judgeModelConfig = {
+                            system_instruction: jc.system_instruction || '',
+                            system_instruction_position: jc.system_instruction_position || 'prepend',
+                            options: jc.options || {}
+                        };
+                        this.judgeModelOptionsJSON = jc.options ? JSON.stringify(jc.options, null, 2) : '';
+                    }
+
+                    if (this.visualConfig.fixer_model && this.visualConfig.model_configs[this.visualConfig.fixer_model]) {
+                        const fc = this.visualConfig.model_configs[this.visualConfig.fixer_model];
+                        this.fixerModelConfig = {
+                            system_instruction: fc.system_instruction || '',
+                            system_instruction_position: fc.system_instruction_position || 'prepend',
+                            options: fc.options || {}
+                        };
+                        this.fixerModelOptionsJSON = fc.options ? JSON.stringify(fc.options, null, 2) : '';
+                    }
+
+                    // Convert question_ids array to text
+                    this.questionIdsText = this.visualConfig.question_ids.join(', ');
+
+                    // Initialize editing configs for all models
+                    this.visualConfig.models.forEach(model => {
+                        const config = this.visualConfig.model_configs[model] || {};
+                        this.editingModelConfigs[model] = {
+                            system_instruction: config.system_instruction || '',
+                            system_instruction_position: config.system_instruction_position || 'prepend',
+                            options: config.options || {}
+                        };
+                        this.editingModelOptionsJSON[model] = config.options ? JSON.stringify(config.options, null, 2) : '';
+                    });
+
+                } catch (yamlError) {
+                    console.error('Error parsing YAML:', yamlError);
+                    this.showToast('Error parsing config YAML', 'error');
+                }
+
                 // Initialize CodeMirror if not already initialized
                 this.$nextTick(() => {
                     this.initializeCodeMirror();
@@ -648,6 +825,261 @@ createApp({
             } catch (error) {
                 console.error('Error restoring backup:', error);
                 this.showToast('Failed to restore backup', 'error');
+            }
+        },
+
+        // ====================================================================
+        // Visual Config Editor Methods
+        // ====================================================================
+
+        syncVisualToYaml() {
+            // Sync judge and fixer configs into model_configs
+            this.syncJudgeFixerToVisualConfig();
+
+            // Convert visualConfig to YAML
+            try {
+                const yamlContent = jsyaml.dump(this.visualConfig, {
+                    indent: 2,
+                    lineWidth: 120,
+                    noRefs: true,
+                    sortKeys: false
+                });
+                this.configContent = yamlContent;
+
+                // Update CodeMirror if it exists
+                if (this.configEditor) {
+                    this.configEditor.setValue(yamlContent);
+                }
+            } catch (error) {
+                console.error('Error converting to YAML:', error);
+            }
+        },
+
+        syncJudgeFixerToVisualConfig() {
+            // Sync judge model config
+            if (this.visualConfig.judge_model) {
+                const judgeConfig = {};
+                if (this.judgeModelConfig.system_instruction) {
+                    judgeConfig.system_instruction = this.judgeModelConfig.system_instruction;
+                    judgeConfig.system_instruction_position = this.judgeModelConfig.system_instruction_position;
+                }
+                if (Object.keys(this.judgeModelConfig.options).length > 0) {
+                    judgeConfig.options = this.judgeModelConfig.options;
+                }
+                if (Object.keys(judgeConfig).length > 0) {
+                    this.visualConfig.model_configs[this.visualConfig.judge_model] = judgeConfig;
+                }
+            }
+
+            // Sync fixer model config
+            if (this.visualConfig.fixer_model) {
+                const fixerConfig = {};
+                if (this.fixerModelConfig.system_instruction) {
+                    fixerConfig.system_instruction = this.fixerModelConfig.system_instruction;
+                    fixerConfig.system_instruction_position = this.fixerModelConfig.system_instruction_position;
+                }
+                if (Object.keys(this.fixerModelConfig.options).length > 0) {
+                    fixerConfig.options = this.fixerModelConfig.options;
+                }
+                if (Object.keys(fixerConfig).length > 0) {
+                    this.visualConfig.model_configs[this.visualConfig.fixer_model] = fixerConfig;
+                }
+            }
+        },
+
+        validateJSON(type) {
+            // Validate JSON for judge or fixer
+            const jsonText = type === 'judge' ? this.judgeModelOptionsJSON : this.fixerModelOptionsJSON;
+
+            if (!jsonText.trim()) {
+                this.jsonErrors[type] = '';
+                if (type === 'judge') {
+                    this.judgeModelConfig.options = {};
+                } else {
+                    this.fixerModelConfig.options = {};
+                }
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(jsonText);
+                this.jsonErrors[type] = '';
+                if (type === 'judge') {
+                    this.judgeModelConfig.options = parsed;
+                } else {
+                    this.fixerModelConfig.options = parsed;
+                }
+            } catch (error) {
+                this.jsonErrors[type] = error.message;
+            }
+        },
+
+        validateModelOptionsJSON(modelId) {
+            const jsonText = this.editingModelOptionsJSON[modelId];
+
+            if (!jsonText || !jsonText.trim()) {
+                this.jsonErrors['model_' + modelId] = '';
+                this.editingModelConfigs[modelId].options = {};
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(jsonText);
+                this.jsonErrors['model_' + modelId] = '';
+                this.editingModelConfigs[modelId].options = parsed;
+            } catch (error) {
+                this.jsonErrors['model_' + modelId] = error.message;
+            }
+        },
+
+        addModel() {
+            if (!this.newModel.id) return;
+
+            // Add to models list
+            if (!this.visualConfig.models.includes(this.newModel.id)) {
+                this.visualConfig.models.push(this.newModel.id);
+            }
+
+            // Add display name if provided
+            if (this.newModel.displayName) {
+                this.visualConfig.model_display_names[this.newModel.id] = this.newModel.displayName;
+            }
+
+            // Add model config if advanced settings provided
+            if (this.newModel.systemInstruction || this.newModel.optionsJSON) {
+                const config = {};
+                if (this.newModel.systemInstruction) {
+                    config.system_instruction = this.newModel.systemInstruction;
+                    config.system_instruction_position = this.newModel.position;
+                }
+                if (this.newModel.optionsJSON) {
+                    try {
+                        config.options = JSON.parse(this.newModel.optionsJSON);
+                    } catch (error) {
+                        this.showToast('Invalid JSON in options', 'error');
+                        return;
+                    }
+                }
+                this.visualConfig.model_configs[this.newModel.id] = config;
+
+                // Initialize editing config
+                this.editingModelConfigs[this.newModel.id] = { ...config };
+                this.editingModelOptionsJSON[this.newModel.id] = config.options ?
+                    JSON.stringify(config.options, null, 2) : '';
+            }
+
+            this.showToast(`Model ${this.newModel.id} added`, 'success');
+            this.cancelAddModel();
+        },
+
+        cancelAddModel() {
+            this.showAddModel = false;
+            this.newModel = {
+                id: '',
+                displayName: '',
+                systemInstruction: '',
+                position: 'prepend',
+                optionsJSON: ''
+            };
+        },
+
+        deleteModel(modelId) {
+            if (!confirm(`Delete model ${modelId}?`)) return;
+
+            // Remove from models list
+            const index = this.visualConfig.models.indexOf(modelId);
+            if (index > -1) {
+                this.visualConfig.models.splice(index, 1);
+            }
+
+            // Remove from display names and configs
+            delete this.visualConfig.model_display_names[modelId];
+            delete this.visualConfig.model_configs[modelId];
+            delete this.editingModelConfigs[modelId];
+            delete this.editingModelOptionsJSON[modelId];
+            delete this.expandedModels[modelId];
+
+            this.showToast(`Model ${modelId} deleted`, 'success');
+        },
+
+        toggleModelExpand(modelId) {
+            this.expandedModels[modelId] = !this.expandedModels[modelId];
+
+            // Initialize editing config if not already
+            if (this.expandedModels[modelId] && !this.editingModelConfigs[modelId]) {
+                const config = this.visualConfig.model_configs[modelId] || {};
+                this.editingModelConfigs[modelId] = {
+                    system_instruction: config.system_instruction || '',
+                    system_instruction_position: config.system_instruction_position || 'prepend',
+                    options: config.options || {}
+                };
+                this.editingModelOptionsJSON[modelId] = config.options ?
+                    JSON.stringify(config.options, null, 2) : '';
+            }
+
+            // Re-render icons
+            this.$nextTick(() => {
+                if (window.lucide) {
+                    lucide.createIcons();
+                }
+            });
+        },
+
+        saveModelConfig(modelId) {
+            // Validate JSON first
+            this.validateModelOptionsJSON(modelId);
+            if (this.jsonErrors['model_' + modelId]) {
+                this.showToast('Fix JSON errors before saving', 'error');
+                return;
+            }
+
+            // Save config
+            const config = this.editingModelConfigs[modelId];
+            if (config.system_instruction || Object.keys(config.options).length > 0) {
+                this.visualConfig.model_configs[modelId] = { ...config };
+            } else {
+                delete this.visualConfig.model_configs[modelId];
+            }
+
+            this.showToast(`Model ${modelId} configuration saved`, 'success');
+            this.toggleModelExpand(modelId);
+        },
+
+        addProviderLimit() {
+            if (!this.newProvider.name || !this.newProvider.limit) return;
+
+            this.visualConfig.provider_concurrency[this.newProvider.name] = this.newProvider.limit;
+
+            this.showAddProvider = false;
+            this.newProvider = { name: '', limit: 1 };
+            this.showToast('Provider limit added', 'success');
+        },
+
+        deleteProviderLimit(provider) {
+            delete this.visualConfig.provider_concurrency[provider];
+            this.showToast(`Provider ${provider} limit removed`, 'success');
+        },
+
+        async loadCategoriesDetailed() {
+            try {
+                const response = await fetch('/api/categories/detailed');
+                const data = await response.json();
+                this.availableCategories = data.categories || [];
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                // Fallback to basic categories endpoint
+                try {
+                    const response = await fetch('/api/categories');
+                    const data = await response.json();
+                    this.availableCategories = (data.categories || []).map(name => ({
+                        name,
+                        display_name: name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                        question_count: 0
+                    }));
+                } catch (fallbackError) {
+                    console.error('Error loading categories (fallback):', fallbackError);
+                    this.availableCategories = [];
+                }
             }
         },
 
