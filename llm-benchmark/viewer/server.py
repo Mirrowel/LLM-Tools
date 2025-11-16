@@ -208,6 +208,15 @@ async def root():
     return HTMLResponse(content="<h1>LLM Benchmark Viewer</h1><p>Template not found. Please create viewer/templates/index.html</p>")
 
 
+@app.get("/benchmark-log-popout", response_class=HTMLResponse)
+async def benchmark_log_popout():
+    """Serve the benchmark log popout window."""
+    html_path = Path(__file__).parent / "templates" / "log_popout.html"
+    if html_path.exists():
+        return FileResponse(html_path)
+    return HTMLResponse(content="<h1>Log Popout</h1><p>Template not found.</p>")
+
+
 @app.get("/api/runs")
 async def get_runs():
     """Get all benchmark runs."""

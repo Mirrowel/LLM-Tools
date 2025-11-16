@@ -58,6 +58,8 @@ createApp({
             benchmarkLoading: false,
             benchmarkPolling: null,
             benchmarkLogs: [],
+            benchmarkAutoScroll: true,
+            benchmarkLogPopout: null,
             benchmarkProgress: {
                 current_model: null,
                 current_model_index: 0,
@@ -1606,13 +1608,20 @@ createApp({
                     this.benchmarkProgress = data.job.progress;
                     this.benchmarkLogs = data.job.logs || [];
 
-                    // Auto-scroll logs to bottom
-                    this.$nextTick(() => {
-                        const logContainer = document.querySelector('.benchmark-logs-container');
-                        if (logContainer) {
-                            logContainer.scrollTop = logContainer.scrollHeight;
-                        }
-                    });
+                    // Auto-scroll logs to bottom (if enabled)
+                    if (this.benchmarkAutoScroll) {
+                        this.$nextTick(() => {
+                            const logContainer = document.querySelector('.benchmark-logs-container');
+                            if (logContainer) {
+                                logContainer.scrollTop = logContainer.scrollHeight;
+                            }
+                        });
+                    }
+
+                    // Update pop-out window if open
+                    if (this.benchmarkLogPopout && !this.benchmarkLogPopout.closed) {
+                        this.updatePopoutWindow();
+                    }
                 }
 
                 // If completed or failed, stop polling
@@ -1662,6 +1671,65 @@ createApp({
                 this.benchmarkHistory = data.history || [];
             } catch (error) {
                 console.error('Error loading benchmark history:', error);
+            }
+        },
+
+        toggleAutoScroll() {
+            this.benchmarkAutoScroll = !this.benchmarkAutoScroll;
+
+            // If enabling, scroll to bottom immediately
+            if (this.benchmarkAutoScroll) {
+                this.$nextTick(() => {
+                    const logContainer = document.querySelector('.benchmark-logs-container');
+                    if (logContainer) {
+                        logContainer.scrollTop = logContainer.scrollHeight;
+                    }
+                });
+            }
+        },
+
+        openLogPopout() {
+            // Close existing popout if any
+            if (this.benchmarkLogPopout && !this.benchmarkLogPopout.closed) {
+                this.benchmarkLogPopout.close();
+            }
+
+            // Open new popout window
+            const width = 800;
+            const height = 600;
+            const left = (screen.width - width) / 2;
+            const top = (screen.height - height) / 2;
+
+            this.benchmarkLogPopout = window.open(
+                '/benchmark-log-popout',
+                'BenchmarkLogPopout',
+                `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+            );
+
+            // Wait for window to load, then send initial data
+            if (this.benchmarkLogPopout) {
+                setTimeout(() => {
+                    this.updatePopoutWindow();
+                }, 100);
+            }
+        },
+
+        updatePopoutWindow() {
+            if (!this.benchmarkLogPopout || this.benchmarkLogPopout.closed) {
+                return;
+            }
+
+            try {
+                // Send data to popout window
+                this.benchmarkLogPopout.postMessage({
+                    type: 'benchmark-update',
+                    status: this.benchmarkStatus,
+                    job: this.benchmarkJob,
+                    progress: this.benchmarkProgress,
+                    logs: this.benchmarkLogs
+                }, window.location.origin);
+            } catch (error) {
+                console.error('Error updating popout window:', error);
             }
         },
 
