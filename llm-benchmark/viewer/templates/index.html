@@ -670,17 +670,37 @@
                                 </div>
                             </div>
 
-                            <!-- Progress Bar -->
-                            <div class="mb-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-sm font-semibold text-gray-300">Overall Progress</span>
-                                    <span class="text-sm text-gray-400">
-                                        {{ benchmarkProgress.questions_completed }}/{{ benchmarkProgress.questions_total }} questions
-                                    </span>
+                            <!-- Progress Bars -->
+                            <div class="mb-4 space-y-4">
+                                <!-- Overall Progress -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-sm font-semibold text-gray-300">Overall Progress</span>
+                                        <span class="text-sm text-gray-400">
+                                            Model {{ benchmarkProgress.current_model_index + 1 }}/{{ benchmarkProgress.total_models }} •
+                                            {{ benchmarkProgress.models_completed * benchmarkProgress.questions_total + benchmarkProgress.questions_completed }}/{{ benchmarkProgress.questions_total * benchmarkProgress.total_models }} total questions
+                                        </span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                                        <div class="bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full transition-all duration-300"
+                                             :style="{width: getOverallProgressPercentage() + '%'}"></div>
+                                    </div>
                                 </div>
-                                <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-                                    <div class="bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full transition-all duration-300"
-                                         :style="{width: getProgressPercentage() + '%'}"></div>
+
+                                <!-- Current Model Progress -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-sm font-semibold text-gray-300">
+                                            Current Model: {{ benchmarkProgress.current_model || 'N/A' }}
+                                        </span>
+                                        <span class="text-sm text-gray-400">
+                                            {{ benchmarkProgress.questions_completed }}/{{ benchmarkProgress.questions_total }} questions
+                                        </span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                                        <div class="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-300"
+                                             :style="{width: getModelProgressPercentage() + '%'}"></div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -690,7 +710,7 @@
                                     <span class="text-sm font-semibold text-gray-300">Live Logs</span>
                                     <span class="text-xs text-gray-500">Auto-scrolling</span>
                                 </div>
-                                <div class="benchmark-logs-container bg-black rounded border border-gray-700 p-4 h-80 overflow-y-auto font-mono text-sm">
+                                <div class="benchmark-logs-container bg-black rounded border border-gray-700 p-4 h-[420px] overflow-y-auto font-mono text-sm">
                                     <div class="space-y-1">
                                         <div v-for="(log, index) in benchmarkLogs" :key="index" class="text-gray-300">
                                             {{ log }}

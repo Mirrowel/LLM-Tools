@@ -1687,7 +1687,19 @@ createApp({
             return date.toLocaleString();
         },
 
-        getProgressPercentage() {
+        getOverallProgressPercentage() {
+            const { questions_total, total_models, models_completed, questions_completed } = this.benchmarkProgress;
+            if (!questions_total || !total_models) return 0;
+
+            // Total questions across all models
+            const totalQuestions = questions_total * total_models;
+            // Questions completed so far (completed models + current model progress)
+            const completedQuestions = (models_completed * questions_total) + questions_completed;
+
+            return Math.round((completedQuestions / totalQuestions) * 100);
+        },
+
+        getModelProgressPercentage() {
             if (!this.benchmarkProgress.questions_total) return 0;
             return Math.round((this.benchmarkProgress.questions_completed / this.benchmarkProgress.questions_total) * 100);
         },
