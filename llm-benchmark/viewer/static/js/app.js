@@ -1718,7 +1718,7 @@ createApp({
             const top = (screen.height - height) / 2;
 
             this.benchmarkLogPopout = window.open(
-                '/benchmark-log-popout',
+                '/benchmark-log-popout?v=' + Date.now(),
                 'BenchmarkLogPopout',
                 `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
             );

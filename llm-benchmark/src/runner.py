@@ -244,14 +244,14 @@ class BenchmarkRunner:
             return response
 
     async def _generate_response_with_retry(
-        self, model: str, question: Question, max_retries: int = 3, progress_callback=None
+        self, model: str, question: Question, max_retries: int = 3, progress_callback=None, cancel_event=None
     ) -> ModelResponse:
         """Generate a response with retry logic for failures."""
         last_error = None
 
         for attempt in range(max_retries):
             try:
-                response = await self._generate_response(model, question, progress_callback=progress_callback)
+                response = await self._generate_response(model, question, progress_callback=progress_callback, cancel_event=cancel_event)
 
                 # Check if response has an error
                 if response.error:
@@ -317,7 +317,7 @@ class BenchmarkRunner:
             )
         )
 
-    async def _generate_response(self, model: str, question: Question, progress_callback=None) -> ModelResponse:
+    async def _generate_response(self, model: str, question: Question, progress_callback=None, cancel_event=None) -> ModelResponse:
         """Generate a response from a model for a question.
 
         Args:
@@ -467,6 +467,10 @@ class BenchmarkRunner:
                                     'elapsed': current_time - start_time
                                 })
                                 last_progress_time = current_time
+
+                        # Check for cancellation
+                        if cancel_event and cancel_event.is_set():
+                            raise Exception("Benchmark cancelled by user")
 
                 except json.JSONDecodeError:
                     continue

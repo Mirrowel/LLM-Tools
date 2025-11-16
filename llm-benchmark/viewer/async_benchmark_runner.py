@@ -308,7 +308,7 @@ class AsyncBenchmarkRunner:
                             progress = args[3] if len(args) > 3 else None
                             task_id = args[4] if len(args) > 4 else None
 
-                            result = await runner._generate_response_with_retry(model, question, progress_callback=stream_progress)
+                            result = await runner._generate_response_with_retry(model, question, progress_callback=stream_progress, cancel_event=self.cancel_event)
                             if progress and task_id is not None:
                                 progress.update(task_id, advance=1)
                     else:
@@ -559,7 +559,7 @@ class AsyncBenchmarkRunner:
 
             # Wait for thread to finish (with timeout)
             if self.runner_thread and self.runner_thread.is_alive():
-                self.runner_thread.join(timeout=5.0)
+                self.runner_thread.join(timeout=15.0)
         else:
             raise ValueError("No benchmark is currently running")
 
