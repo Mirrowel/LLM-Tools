@@ -1,5 +1,388 @@
 [
   {
+    "job_id": "benchmark_20251116_212450",
+    "status": "failed",
+    "config": {
+      "models": [
+        "opencode/big-pickle",
+        "iflow/qwen3-coder-plus",
+        "iflow/qwen3-max",
+        "nvidia_nim/minimaxai/minimax-m2",
+        "nvidia_nim/moonshotai/kimi-k2-instruct",
+        "nvidia_nim/moonshotai/kimi-k2-instruct-0905",
+        "nvidia_nim/deepseek-ai/deepseek-v3.1",
+        "nvidia_nim/deepseek-ai/deepseek-v3.1-terminus",
+        "nvidia_nim/deepseek-ai/deepseek-r1-0528",
+        "nvidia_nim/deepseek-ai/deepseek-r1",
+        "nvidia_nim/qwen/qwen3-next-80b-a3b-thinking",
+        "nvidia_nim/qwen/qwen3-coder-480b-a35b-instruct",
+        "nvidia_nim/nvidia/llama-3.3-nemotron-super-49b-v1.5",
+        "nvidia_nim/nvidia/llama-3.1-nemotron-ultra-253b-v1",
+        "nvidia_nim/bytedance/seed-oss-36b-instruct",
+        "gemini/gemini-2.5-pro",
+        "gemini/gemini-2.5-flash-preview-09-2025",
+        "gemini/gemini-2.5-flash-lite-preview-09-2025"
+      ],
+      "categories": [],
+      "question_ids": [],
+      "max_concurrent": 10,
+      "provider_concurrency": {
+        "iflow": 1,
+        "opencode": 5
+      },
+      "judge_model": "opencode/big-pickle",
+      "questions_dir": "questions",
+      "results_dir": "results",
+      "model_configs": {
+        "opencode/big-pickle": {
+          "system_instruction": "think deeply about the task, reason and then output what is required. ultrathink",
+          "system_instruction_position": "append",
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "gemini/gemini-2.5-pro": {
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "gemini/gemini-2.5-flash-preview-09-2025": {
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "gemini/gemini-2.5-flash-lite-preview-09-2025": {
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "nvidia_nim/deepseek-ai/deepseek-v3.1": {
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "nvidia_nim/deepseek-ai/deepseek-v3.1-terminus": {
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "nvidia_nim/nvidia/llama-3.1-nemotron-ultra-253b-v1": {
+          "system_instruction": "detailed thinking on"
+        },
+        "nvidia_nim/nvidia/llama-3.3-nemotron-super-49b-v1.5": {
+          "system_instruction": "detailed thinking on"
+        }
+      },
+      "code_formatting_instructions": {
+        "enabled": true,
+        "instruction": "Provide ONLY the code in your response. Do not include explanations, descriptions, or commentary.\nUse markdown code blocks with language tags.\nFor single-file solutions: ```python or ```html or ```javascript\nFor multi-file apps, use: ```html:index.html, ```css:styles.css, ```javascript:app.js\nEnsure files reference each other correctly (e.g., <link href=\"styles.css\">).\nOutput the complete, working code and nothing else.\n"
+      }
+    },
+    "progress": {
+      "current_model": "opencode/big-pickle",
+      "current_model_index": 0,
+      "total_models": 18,
+      "current_phase": "generating_responses",
+      "questions_completed": 0,
+      "questions_total": 35,
+      "models_completed": 0,
+      "elapsed_seconds": 58.38609051704407,
+      "cumulative_prompt_tokens": 0,
+      "cumulative_completion_tokens": 0,
+      "cumulative_reasoning_tokens": 0,
+      "cumulative_cost": 0.0
+    },
+    "logs": [
+      "[21:24:50.608] \u2139 Benchmark job created",
+      "[21:24:50.610] \u2139 Benchmark started",
+      "[21:24:50.611] \u2139 Loading questions...",
+      "[21:24:50.615] \u2713 Loaded 35 questions across 18 model(s)",
+      "[21:24:50.619] \u2139 \ud83d\udd34 MirroBench - Starting Benchmark",
+      "[21:24:50.621] \u2139 Models: opencode/big-pickle, iflow/qwen3-coder-plus, iflow/qwen3-max, nvidia_nim/minimaxai/minimax-m2, \nnvidia_nim/moonshotai/kimi-k2-instruct, nvidia_nim/moonshotai/kimi-k2-instruct-0905, \nnvidia_nim/deepseek-ai/deepseek-v3.1, nvidia_nim/deepseek-ai/deepseek-v3.1-terminus, \nnvidia_nim/deepseek-ai/deepseek-r1-0528, nvidia_nim/deepseek-ai/deepseek-r1, \nnvidia_nim/qwen/qwen3-next-80b-a3b-thinking, nvidia_nim/qwen/qwen3-coder-480b-a35b-instruct, \nnvidia_nim/nvidia/llama-3.3-nemotron-super-49b-v1.5, nvidia_nim/nvidia/llama-3.1-nemotron-ultra-253b-v1, \nnvidia_nim/bytedance/seed-oss-36b-instruct, gemini/gemini-2.5-pro, gemini/gemini-2.5-flash-preview-09-2025, \ngemini/gemini-2.5-flash-lite-preview-09-2025",
+      "[21:24:50.622] \u2139 Judge Model: opencode/big-pickle",
+      "[21:24:50.622] \u2139 Loading questions...",
+      "[21:24:50.628] \u2139 Loaded 35 questions from 6 categories",
+      "[21:24:50.629] \u2139 Loaded 35 questions",
+      "[21:24:50.630] \u2139 ============================================================",
+      "[21:24:50.630] \u2139 Starting Run for: opencode/big-pickle",
+      "[21:24:50.631] \u2139 ============================================================",
+      "[21:24:50.635] \u2139 Run ID: opencode_big-pickle_20251116_212450",
+      "[21:24:50.636] \u2139 Using provider-specific concurrency: 5 for opencode",
+      "[21:24:50.636] \u2139 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+      "[21:24:50.636] \u2139 Model 1/18: opencode/big-pickle",
+      "[21:24:50.636] \u2139 Phase: Generating responses for 35 questions",
+      "[21:24:50.637] \u2139 \u27f3 Starting: cli_terminal_text_editor",
+      "[21:24:50.639] \u2139 \u27f3 Starting: cli_file_organizer_python",
+      "[21:24:50.639] \u2139 \u27f3 Starting: cli_weather_dashboard_rust",
+      "[21:24:50.639] \u2139 \u27f3 Starting: cli_markdown_to_html_node",
+      "[21:24:50.639] \u2139 \u27f3 Starting: cli_system_monitor_python",
+      "[21:25:35.443] \u2139 \u27f3 cli_system_monitor_python: \u2593\u2593\u2593\u2591\u2591\u2591\u2591\u2591\u2591\u2591 Generating... (550 tokens, 144 reasoning, 15.5 TPS, 44.8s)",
+      "[21:25:49.675] \u2139 \u27f3 cli_file_organizer_python: \u2593\u2593\u2593\u2591\u2591\u2591\u2591\u2591\u2591\u2591 Generating... (529 tokens, 128 reasoning, 11.1 TPS, 59.0s)",
+      "[21:25:49.593] \u2139 \u27f3 cli_terminal_text_editor: \u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593 Generating... (1781 tokens, 155 reasoning, 32.8 TPS, 59.0s)",
+      "[21:25:49.388] \u2139 \u27f3 cli_markdown_to_html_node: \u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593 Generating... (1736 tokens, 167 reasoning, 32.4 TPS, 58.7s)",
+      "[21:25:49.641] \u2139 \u27f3 cli_weather_dashboard_rust: \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591 Generating... (95 tokens, 163 reasoning, 4.4 TPS, 59.0s)",
+      "[21:25:49.720] \u2139 \u27f3 Starting: creative_mandelbrot_set",
+      "[21:25:49.724] \u2139 \u2807 Generating responses... \u2501\u257a\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501   3% 0:00:59",
+      "[21:25:49.735] \u2717 Benchmark failed: 'dict' object has no attribute 'progress'"
+    ],
+    "library_logs": [
+      "[21:24:50.638] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[21:24:50.639] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[21:24:50.639] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[21:24:50.639] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[21:24:50.639] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[21:24:50.642] \u2139 Acquired Tier 1 key ...hp3D4S for model opencode/big-pickle",
+      "[21:24:50.642] \u2139 Loaded 16 models for provider: iflow",
+      "[21:24:50.642] \u2139 Loaded 1 models for provider: opencode",
+      "[21:24:50.643] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)",
+      "[21:24:50.643] \u2139 Acquired Tier 2 key ...hp3D4S for model opencode/big-pickle (concurrent: 2/5)",
+      "[21:24:50.643] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)",
+      "[21:24:50.671] \u2139 Acquired Tier 2 key ...hp3D4S for model opencode/big-pickle (concurrent: 3/5)",
+      "[21:24:50.671] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)",
+      "[21:24:50.672] \u2139 Acquired Tier 2 key ...hp3D4S for model opencode/big-pickle (concurrent: 4/5)",
+      "[21:24:50.672] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)",
+      "[21:24:51.408] \u2139 Acquired Tier 2 key ...hp3D4S for model opencode/big-pickle (concurrent: 5/5)",
+      "[21:24:51.408] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)",
+      "[21:24:53.022] \u2139 Stream connection established for credential ...hp3D4S. Processing response.",
+      "[21:24:53.115] \u2139 Stream connection established for credential ...hp3D4S. Processing response.",
+      "[21:24:53.472] \u2139 Stream connection established for credential ...hp3D4S. Processing response.",
+      "[21:24:54.231] \u2139 Stream connection established for credential ...hp3D4S. Processing response.",
+      "[21:25:02.745] \u2139 Stream connection established for credential ...hp3D4S. Processing response.",
+      "[21:25:49.585] \u2139 Recorded usage from response object for key ...hp3D4S",
+      "[21:25:49.585] \ud83d\udd0d Skipping cost calculation for provider 'opencode' (custom provider).",
+      "[21:25:49.712] \u2139 Released credential ...hp3D4S from model opencode/big-pickle (remaining concurrent: 4)",
+      "[21:25:49.712] \u2139 STREAM FINISHED and lock released for credential ...hp3D4S.",
+      "[21:25:49.721] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[21:25:49.721] \u2139 Acquired Tier 2 key ...hp3D4S for model opencode/big-pickle (concurrent: 5/5)",
+      "[21:25:49.721] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)"
+    ],
+    "run_id": null,
+    "error": "'dict' object has no attribute 'progress'",
+    "started_at": "2025-11-16T21:24:50.610839",
+    "completed_at": "2025-11-16T21:25:49.734043",
+    "metadata": {
+      "models_tested": [
+        "opencode/big-pickle",
+        "iflow/qwen3-coder-plus",
+        "iflow/qwen3-max",
+        "nvidia_nim/minimaxai/minimax-m2",
+        "nvidia_nim/moonshotai/kimi-k2-instruct",
+        "nvidia_nim/moonshotai/kimi-k2-instruct-0905",
+        "nvidia_nim/deepseek-ai/deepseek-v3.1",
+        "nvidia_nim/deepseek-ai/deepseek-v3.1-terminus",
+        "nvidia_nim/deepseek-ai/deepseek-r1-0528",
+        "nvidia_nim/deepseek-ai/deepseek-r1",
+        "nvidia_nim/qwen/qwen3-next-80b-a3b-thinking",
+        "nvidia_nim/qwen/qwen3-coder-480b-a35b-instruct",
+        "nvidia_nim/nvidia/llama-3.3-nemotron-super-49b-v1.5",
+        "nvidia_nim/nvidia/llama-3.1-nemotron-ultra-253b-v1",
+        "nvidia_nim/bytedance/seed-oss-36b-instruct",
+        "gemini/gemini-2.5-pro",
+        "gemini/gemini-2.5-flash-preview-09-2025",
+        "gemini/gemini-2.5-flash-lite-preview-09-2025"
+      ],
+      "total_models": 18,
+      "total_questions": 35,
+      "questions_completed": 0,
+      "models_completed": 0,
+      "duration_seconds": 58.38609051704407,
+      "categories": [],
+      "max_concurrent": 10
+    }
+  },
+  {
+    "job_id": "benchmark_20251116_090709",
+    "status": "failed",
+    "config": {
+      "models": [
+        "opencode/big-pickle",
+        "iflow/qwen3-coder-plus",
+        "iflow/qwen3-max",
+        "nvidia_nim/minimaxai/minimax-m2",
+        "nvidia_nim/moonshotai/kimi-k2-instruct",
+        "nvidia_nim/moonshotai/kimi-k2-instruct-0905",
+        "nvidia_nim/deepseek-ai/deepseek-v3.1",
+        "nvidia_nim/deepseek-ai/deepseek-v3.1-terminus",
+        "nvidia_nim/deepseek-ai/deepseek-r1-0528",
+        "nvidia_nim/deepseek-ai/deepseek-r1",
+        "nvidia_nim/qwen/qwen3-next-80b-a3b-thinking",
+        "nvidia_nim/qwen/qwen3-coder-480b-a35b-instruct",
+        "nvidia_nim/nvidia/llama-3.3-nemotron-super-49b-v1.5",
+        "nvidia_nim/nvidia/llama-3.1-nemotron-ultra-253b-v1",
+        "nvidia_nim/bytedance/seed-oss-36b-instruct",
+        "gemini/gemini-2.5-pro",
+        "gemini/gemini-2.5-flash-preview-09-2025",
+        "gemini/gemini-2.5-flash-lite-preview-09-2025"
+      ],
+      "categories": [],
+      "question_ids": [],
+      "max_concurrent": 10,
+      "provider_concurrency": {
+        "iflow": 1,
+        "opencode": 5
+      },
+      "judge_model": "opencode/big-pickle",
+      "questions_dir": "questions",
+      "results_dir": "results",
+      "model_configs": {
+        "opencode/big-pickle": {
+          "system_instruction": "think deeply about the task, reason and then output what is required. ultrathink",
+          "system_instruction_position": "append",
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "gemini/gemini-2.5-pro": {
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "gemini/gemini-2.5-flash-preview-09-2025": {
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "gemini/gemini-2.5-flash-lite-preview-09-2025": {
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "nvidia_nim/deepseek-ai/deepseek-v3.1": {
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "nvidia_nim/deepseek-ai/deepseek-v3.1-terminus": {
+          "options": {
+            "reasoning_effort": "high"
+          }
+        },
+        "nvidia_nim/nvidia/llama-3.1-nemotron-ultra-253b-v1": {
+          "system_instruction": "detailed thinking on"
+        },
+        "nvidia_nim/nvidia/llama-3.3-nemotron-super-49b-v1.5": {
+          "system_instruction": "detailed thinking on"
+        }
+      },
+      "code_formatting_instructions": {
+        "enabled": true,
+        "instruction": "Provide ONLY the code in your response. Do not include explanations, descriptions, or commentary.\nUse markdown code blocks with language tags.\nFor single-file solutions: ```python or ```html or ```javascript\nFor multi-file apps, use: ```html:index.html, ```css:styles.css, ```javascript:app.js\nEnsure files reference each other correctly (e.g., <link href=\"styles.css\">).\nOutput the complete, working code and nothing else.\n"
+      }
+    },
+    "progress": {
+      "current_model": "opencode/big-pickle",
+      "current_model_index": 0,
+      "total_models": 18,
+      "current_phase": "generating_responses",
+      "questions_completed": 0,
+      "questions_total": 35,
+      "models_completed": 0,
+      "elapsed_seconds": 27.54121971130371,
+      "cumulative_prompt_tokens": 0,
+      "cumulative_completion_tokens": 0,
+      "cumulative_reasoning_tokens": 0,
+      "cumulative_cost": 0.0
+    },
+    "logs": [
+      "[09:07:09] \u2139 Benchmark job created",
+      "[09:07:09] \u2139 Benchmark started",
+      "[09:07:09] \u2139 Loading questions...",
+      "[09:07:09] \u2713 Loaded 35 questions across 18 model(s)",
+      "[09:07:09] \u2139 \ud83d\udd34 MirroBench - Starting Benchmark",
+      "[09:07:09] \u2139 Models: opencode/big-pickle, iflow/qwen3-coder-plus, iflow/qwen3-max, nvidia_nim/minimaxai/minimax-m2, \nnvidia_nim/moonshotai/kimi-k2-instruct, nvidia_nim/moonshotai/kimi-k2-instruct-0905, \nnvidia_nim/deepseek-ai/deepseek-v3.1, nvidia_nim/deepseek-ai/deepseek-v3.1-terminus, \nnvidia_nim/deepseek-ai/deepseek-r1-0528, nvidia_nim/deepseek-ai/deepseek-r1, \nnvidia_nim/qwen/qwen3-next-80b-a3b-thinking, nvidia_nim/qwen/qwen3-coder-480b-a35b-instruct, \nnvidia_nim/nvidia/llama-3.3-nemotron-super-49b-v1.5, nvidia_nim/nvidia/llama-3.1-nemotron-ultra-253b-v1, \nnvidia_nim/bytedance/seed-oss-36b-instruct, gemini/gemini-2.5-pro, gemini/gemini-2.5-flash-preview-09-2025, \ngemini/gemini-2.5-flash-lite-preview-09-2025",
+      "[09:07:09] \u2139 Judge Model: opencode/big-pickle",
+      "[09:07:09] \u2139 Loading questions...",
+      "[09:07:09] \u2139 Loaded 35 questions from 6 categories",
+      "[09:07:09] \u2139 Loaded 35 questions",
+      "[09:07:09] \u2139 ============================================================",
+      "[09:07:09] \u2139 Starting Run for: opencode/big-pickle",
+      "[09:07:09] \u2139 ============================================================",
+      "[09:07:09] \u2139 Run ID: opencode_big-pickle_20251116_090709",
+      "[09:07:09] \u2139 Using provider-specific concurrency: 5 for opencode",
+      "[09:07:09] \u2139 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+      "[09:07:09] \u2139 Model 1/18: opencode/big-pickle",
+      "[09:07:09] \u2139 Phase: Generating responses for 35 questions",
+      "[09:07:09] \u2139 \u27f3 Starting: cli_terminal_text_editor",
+      "[09:07:09] \u2139 \u27f3 Starting: cli_file_organizer_python",
+      "[09:07:09] \u2139 \u27f3 Starting: cli_weather_dashboard_rust",
+      "[09:07:09] \u2139 \u27f3 Starting: cli_markdown_to_html_node",
+      "[09:07:09] \u2139 \u27f3 Starting: cli_system_monitor_python",
+      "[09:07:56] \u2139 \u27f3 cli_file_organizer_python: \u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2591 Generating... (1432 tokens, 190 reasoning, 34.5 TPS, 47.0s)",
+      "[09:07:57] \u2139 \u27f3 cli_system_monitor_python: \u2593\u2593\u2593\u2593\u2593\u2591\u2591\u2591\u2591\u2591 Generating... (857 tokens, 127 reasoning, 20.8 TPS, 47.4s)",
+      "[09:07:57] \u2139 \u27f3 cli_weather_dashboard_rust: \u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2591\u2591 Generating... (1339 tokens, 169 reasoning, 31.8 TPS, 47.5s)",
+      "[09:07:57] \u2139 \u27f3 cli_terminal_text_editor: \u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2591 Generating... (1484 tokens, 176 reasoning, 35.0 TPS, 47.4s)",
+      "[09:07:57] \u2139 \u27f3 cli_markdown_to_html_node: \u2593\u2593\u2593\u2593\u2593\u2593\u2591\u2591\u2591\u2591 Generating... (943 tokens, 129 reasoning, 22.6 TPS, 47.3s)",
+      "[09:07:37] \u26a0 Cancellation requested...",
+      "[09:07:57] \u2139 \u27f3 Starting: creative_mandelbrot_set",
+      "[09:07:57] \u2139 \u283c Generating responses... \u2501\u257a\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501   3% 0:00:47",
+      "[09:07:57] \u2717 Benchmark failed: 'dict' object has no attribute 'progress'"
+    ],
+    "library_logs": [
+      "[09:07:09.819] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[09:07:09.821] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[09:07:09.822] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[09:07:09.822] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[09:07:09.822] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[09:07:09.825] \u2139 Acquired Tier 1 key ...hp3D4S for model opencode/big-pickle",
+      "[09:07:09.825] \u2139 Loaded 16 models for provider: iflow",
+      "[09:07:09.825] \u2139 Loaded 1 models for provider: opencode",
+      "[09:07:09.825] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)",
+      "[09:07:09.826] \u2139 Acquired Tier 2 key ...hp3D4S for model opencode/big-pickle (concurrent: 2/5)",
+      "[09:07:09.826] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)",
+      "[09:07:09.852] \u2139 Acquired Tier 2 key ...hp3D4S for model opencode/big-pickle (concurrent: 3/5)",
+      "[09:07:09.852] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)",
+      "[09:07:09.852] \u2139 Acquired Tier 2 key ...hp3D4S for model opencode/big-pickle (concurrent: 4/5)",
+      "[09:07:09.852] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)",
+      "[09:07:10.581] \u2139 Acquired Tier 2 key ...hp3D4S for model opencode/big-pickle (concurrent: 5/5)",
+      "[09:07:10.581] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)",
+      "[09:07:12.201] \u2139 Stream connection established for credential ...hp3D4S. Processing response.",
+      "[09:07:12.216] \u2139 Stream connection established for credential ...hp3D4S. Processing response.",
+      "[09:07:12.263] \u2139 Stream connection established for credential ...hp3D4S. Processing response.",
+      "[09:07:12.434] \u2139 Stream connection established for credential ...hp3D4S. Processing response.",
+      "[09:07:13.483] \u2139 Stream connection established for credential ...hp3D4S. Processing response.",
+      "[09:07:57.156] \u2139 Recorded usage from response object for key ...hp3D4S",
+      "[09:07:57.156] \ud83d\udd0d Skipping cost calculation for provider 'opencode' (custom provider).",
+      "[09:07:57.405] \u2139 Released credential ...hp3D4S from model opencode/big-pickle (remaining concurrent: 4)",
+      "[09:07:57.405] \u2139 STREAM FINISHED and lock released for credential ...hp3D4S.",
+      "[09:07:57.412] \u2139 Acquiring credential for model opencode/big-pickle. Tried credentials: 0/1",
+      "[09:07:57.412] \u2139 Acquired Tier 2 key ...hp3D4S for model opencode/big-pickle (concurrent: 5/5)",
+      "[09:07:57.413] \u2139 Attempting stream with credential ...hp3D4S (Attempt 1/5)"
+    ],
+    "run_id": null,
+    "error": "'dict' object has no attribute 'progress'",
+    "started_at": "2025-11-16T09:07:09.778428",
+    "completed_at": "2025-11-16T09:07:57.415279",
+    "metadata": {
+      "models_tested": [
+        "opencode/big-pickle",
+        "iflow/qwen3-coder-plus",
+        "iflow/qwen3-max",
+        "nvidia_nim/minimaxai/minimax-m2",
+        "nvidia_nim/moonshotai/kimi-k2-instruct",
+        "nvidia_nim/moonshotai/kimi-k2-instruct-0905",
+        "nvidia_nim/deepseek-ai/deepseek-v3.1",
+        "nvidia_nim/deepseek-ai/deepseek-v3.1-terminus",
+        "nvidia_nim/deepseek-ai/deepseek-r1-0528",
+        "nvidia_nim/deepseek-ai/deepseek-r1",
+        "nvidia_nim/qwen/qwen3-next-80b-a3b-thinking",
+        "nvidia_nim/qwen/qwen3-coder-480b-a35b-instruct",
+        "nvidia_nim/nvidia/llama-3.3-nemotron-super-49b-v1.5",
+        "nvidia_nim/nvidia/llama-3.1-nemotron-ultra-253b-v1",
+        "nvidia_nim/bytedance/seed-oss-36b-instruct",
+        "gemini/gemini-2.5-pro",
+        "gemini/gemini-2.5-flash-preview-09-2025",
+        "gemini/gemini-2.5-flash-lite-preview-09-2025"
+      ],
+      "total_models": 18,
+      "total_questions": 35,
+      "questions_completed": 0,
+      "models_completed": 0,
+      "duration_seconds": 27.54121971130371,
+      "categories": [],
+      "max_concurrent": 10
+    }
+  },
+  {
     "job_id": "benchmark_20251116_074300",
     "status": "cancelled",
     "config": {

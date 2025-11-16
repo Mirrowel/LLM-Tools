@@ -710,15 +710,13 @@
                                     <span class="text-sm font-semibold text-gray-300">Live Logs</span>
                                     <div class="flex items-center space-x-2">
                                         <button @click="showAdvancedLogs = !showAdvancedLogs"
-                                                :class="['px-3 py-1 text-xs rounded transition flex items-center space-x-1',
+                                                :class="['px-3 py-1 text-xs rounded transition',
                                                          showAdvancedLogs ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-gray-600 hover:bg-gray-500 text-white']">
-                                            <i :data-lucide="showAdvancedLogs ? 'check-circle' : 'circle'" class="w-3 h-3"></i>
                                             <span>Advanced</span>
                                         </button>
                                         <button @click="toggleAutoScroll"
-                                                :class="['px-3 py-1 text-xs rounded transition flex items-center space-x-1',
+                                                :class="['px-3 py-1 text-xs rounded transition',
                                                          benchmarkAutoScroll ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-gray-600 hover:bg-gray-500 text-white']">
-                                            <i :data-lucide="benchmarkAutoScroll ? 'check-circle' : 'circle'" class="w-3 h-3"></i>
                                             <span>Auto-scroll</span>
                                         </button>
                                         <button @click="openLogPopout"

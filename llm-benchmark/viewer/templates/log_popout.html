@@ -24,9 +24,8 @@
             </div>
             <div class="flex items-center space-x-3">
                 <button @click="toggleAutoScroll"
-                        :class="['px-3 py-1 text-xs rounded transition flex items-center space-x-1',
+                        :class="['px-3 py-1 text-xs rounded transition',
                                  autoScroll ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-gray-600 hover:bg-gray-500 text-white']">
-                    <i :data-lucide="autoScroll ? 'check-circle' : 'circle'" class="w-3 h-3"></i>
                     <span>Auto-scroll</span>
                 </button>
                 <span class="px-3 py-1 text-xs font-semibold rounded"
