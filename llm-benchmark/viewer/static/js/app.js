@@ -68,7 +68,11 @@ createApp({
                 questions_completed: 0,
                 questions_total: 0,
                 models_completed: 0,
-                elapsed_seconds: 0
+                elapsed_seconds: 0,
+                cumulative_prompt_tokens: 0,
+                cumulative_completion_tokens: 0,
+                cumulative_reasoning_tokens: 0,
+                cumulative_cost: 0.0
             },
             benchmarkConfig: {
                 models: [],

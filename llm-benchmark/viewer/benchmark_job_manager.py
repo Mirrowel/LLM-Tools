@@ -34,6 +34,11 @@ class JobProgress:
     questions_total: int = 0
     models_completed: int = 0
     elapsed_seconds: float = 0.0
+    # Token usage tracking (cumulative across current model)
+    cumulative_prompt_tokens: int = 0
+    cumulative_completion_tokens: int = 0
+    cumulative_reasoning_tokens: int = 0
+    cumulative_cost: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

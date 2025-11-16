@@ -244,14 +244,14 @@ class BenchmarkRunner:
             return response
 
     async def _generate_response_with_retry(
-        self, model: str, question: Question, max_retries: int = 3
+        self, model: str, question: Question, max_retries: int = 3, progress_callback=None
     ) -> ModelResponse:
         """Generate a response with retry logic for failures."""
         last_error = None
 
         for attempt in range(max_retries):
             try:
-                response = await self._generate_response(model, question)
+                response = await self._generate_response(model, question, progress_callback=progress_callback)
 
                 # Check if response has an error
                 if response.error:
@@ -317,8 +317,15 @@ class BenchmarkRunner:
             )
         )
 
-    async def _generate_response(self, model: str, question: Question) -> ModelResponse:
-        """Generate a response from a model for a question."""
+    async def _generate_response(self, model: str, question: Question, progress_callback=None) -> ModelResponse:
+        """Generate a response from a model for a question.
+
+        Args:
+            model: Model identifier
+            question: Question to answer
+            progress_callback: Optional callback function for streaming progress updates.
+                              Called with dict containing: question_id, tokens_so_far, reasoning_tokens, elapsed
+        """
         start_time = time.time()
         first_token_time = None
         response_text = ""
@@ -326,6 +333,7 @@ class BenchmarkRunner:
         tool_calls = None
         full_response_obj = None
         error = None
+        last_progress_time = 0
 
         try:
             # Build messages
@@ -444,6 +452,21 @@ class BenchmarkRunner:
                             if tool_calls is None:
                                 tool_calls = []
                             tool_calls.extend(delta["tool_calls"])
+
+                        # Call progress callback periodically (every 0.5s) if provided
+                        if progress_callback and first_token_time is not None:
+                            current_time = time.time()
+                            if current_time - last_progress_time >= 0.5:
+                                # Rough token count estimation (splitting by spaces)
+                                tokens_so_far = len(response_text.split()) if response_text else 0
+                                reasoning_tokens = len(reasoning_content.split()) if reasoning_content else 0
+                                progress_callback({
+                                    'question_id': question.id,
+                                    'tokens_so_far': tokens_so_far,
+                                    'reasoning_tokens': reasoning_tokens,
+                                    'elapsed': current_time - start_time
+                                })
+                                last_progress_time = current_time
 
                 except json.JSONDecodeError:
                     continue

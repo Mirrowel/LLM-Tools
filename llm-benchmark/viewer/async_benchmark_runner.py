@@ -262,13 +262,38 @@ class AsyncBenchmarkRunner:
                                 level="info"
                             )
 
+                            # Define streaming progress callback
+                            def stream_progress(data):
+                                """Called periodically during response streaming"""
+                                tokens = data.get('tokens_so_far', 0)
+                                reasoning_tokens = data.get('reasoning_tokens', 0)
+                                elapsed = data.get('elapsed', 0)
+
+                                # Create progress bar (estimate 1500 tokens as target)
+                                estimated_total = 1500
+                                progress_pct = min(1.0, tokens / estimated_total)
+                                bar_length = 10
+                                filled = int(bar_length * progress_pct)
+                                bar = '▓' * filled + '░' * (bar_length - filled)
+
+                                # Build details string
+                                details = f"{tokens} tokens"
+                                if reasoning_tokens > 0:
+                                    details += f", {reasoning_tokens} reasoning"
+
+                                # Update log (this replaces previous progress lines in UI)
+                                job_manager.add_log(
+                                    f"⟳ {question.id}: {bar} Generating... ({details}, {elapsed:.1f}s)",
+                                    level="info"
+                                )
+
                             # Call the actual generation (without semaphore since we already have it)
                             # We need to call the inner method directly
                             model = args[1] if len(args) > 1 else None
                             progress = args[3] if len(args) > 3 else None
                             task_id = args[4] if len(args) > 4 else None
 
-                            result = await runner._generate_response_with_retry(model, question)
+                            result = await runner._generate_response_with_retry(model, question, progress_callback=stream_progress)
                             if progress and task_id is not None:
                                 progress.update(task_id, advance=1)
                     else:
@@ -279,10 +304,29 @@ class AsyncBenchmarkRunner:
                     elapsed = time.time() - start_time
 
                     questions_completed += 1
-                    tracker.update(
-                        questions_completed=questions_completed,
-                        current_phase="generating_responses"
-                    )
+
+                    # Accumulate token usage
+                    if result.metrics and not result.error:
+                        prompt_tokens = result.metrics.get('prompt_tokens', 0)
+                        completion_tokens = result.metrics.get('completion_tokens', 0)
+                        reasoning_tokens = result.metrics.get('reasoning_tokens', 0)
+                        cost = result.metrics.get('estimated_cost', 0)
+
+                        # Get current cumulative values from tracker
+                        current_state = tracker.get_state()
+                        tracker.update(
+                            questions_completed=questions_completed,
+                            current_phase="generating_responses",
+                            cumulative_prompt_tokens=current_state.cumulative_prompt_tokens + prompt_tokens,
+                            cumulative_completion_tokens=current_state.cumulative_completion_tokens + completion_tokens,
+                            cumulative_reasoning_tokens=current_state.cumulative_reasoning_tokens + reasoning_tokens,
+                            cumulative_cost=current_state.cumulative_cost + cost
+                        )
+                    else:
+                        tracker.update(
+                            questions_completed=questions_completed,
+                            current_phase="generating_responses"
+                        )
 
                     # Log AFTER completion
                     if question:
@@ -385,9 +429,42 @@ class AsyncBenchmarkRunner:
                 runner._generate_response_with_semaphore = original_generate
                 runner._evaluate_response_with_semaphore = original_evaluate
 
-                # Mark model as completed
+                # Get final token stats before marking complete
+                current_state = tracker.get_state()
+
+                # Mark model as completed and reset token counters for next model
                 tracker.update(
                     models_completed=current_index + 1
+                )
+
+                # Log model completion summary with token breakdown
+                total_tokens = (current_state.cumulative_prompt_tokens +
+                               current_state.cumulative_completion_tokens +
+                               current_state.cumulative_reasoning_tokens)
+
+                summary_parts = [
+                    f"✓ Model '{model}' completed",
+                    f"   ↳ Tokens: {total_tokens:,} ({current_state.cumulative_prompt_tokens:,} prompt"
+                ]
+
+                if current_state.cumulative_completion_tokens > 0:
+                    summary_parts.append(f" • {current_state.cumulative_completion_tokens:,} completion")
+                if current_state.cumulative_reasoning_tokens > 0:
+                    summary_parts.append(f" • {current_state.cumulative_reasoning_tokens:,} reasoning")
+
+                summary_parts.append(")")
+
+                if current_state.cumulative_cost > 0:
+                    summary_parts.append(f"   ↳ Cost: ${current_state.cumulative_cost:.3f}")
+
+                job_manager.add_log(''.join(summary_parts), level="success")
+
+                # Reset token counters for next model
+                tracker.update(
+                    cumulative_prompt_tokens=0,
+                    cumulative_completion_tokens=0,
+                    cumulative_reasoning_tokens=0,
+                    cumulative_cost=0.0
                 )
 
                 return result
