@@ -58,6 +58,10 @@ createApp({
             isSyncing: false, // Flag to prevent infinite loops between visual and YAML sync
             configLoading: false, // Loading state for config
             configLoadError: null, // Error message if config load fails
+            yamlSyncTimeout: null, // Debounce timer for YAML → Visual sync
+            visualSyncTimeout: null, // Debounce timer for Visual → YAML sync
+            isEditingYaml: false, // Flag to track if user is actively editing YAML
+            yamlEditTimeout: null, // Timer to detect when user stops editing YAML
 
             // Visual Config Editor Data
             visualConfig: {
@@ -177,31 +181,68 @@ createApp({
 
         showYamlCodeModal(show) {
             if (show) {
-                // Ensure CodeMirror is initialized when YAML modal opens
+                // Initialize CodeMirror when YAML modal opens (now that it's visible)
                 this.$nextTick(() => {
                     this.initializeCodeMirror();
+
+                    // Refresh CodeMirror to fix layout issues (line numbers, etc.)
+                    if (this.configEditor) {
+                        this.configEditor.refresh();
+                    }
                 });
+            } else {
+                // Reset editing flag when closing modal
+                this.isEditingYaml = false;
+                if (this.yamlEditTimeout) {
+                    clearTimeout(this.yamlEditTimeout);
+                }
             }
         },
 
         visualConfig: {
             handler() {
-                // Sync visual config to YAML in real-time
-                this.syncVisualToYaml();
+                // Prevent infinite loops during config load/sync
+                if (this.isSyncing) return;
+
+                // Debounce Visual → YAML sync (prevent freezing when typing in visual fields)
+                if (this.visualSyncTimeout) {
+                    clearTimeout(this.visualSyncTimeout);
+                }
+                this.visualSyncTimeout = setTimeout(() => {
+                    this.syncVisualToYaml();
+                }, 300); // 300ms debounce - faster than YAML sync since visual is lighter
             },
             deep: true
         },
 
         judgeModelConfig: {
             handler() {
-                this.syncJudgeFixerToVisualConfig();
+                // Prevent infinite loops during config load/sync
+                if (this.isSyncing) return;
+
+                // Debounce to prevent excessive syncing
+                if (this.visualSyncTimeout) {
+                    clearTimeout(this.visualSyncTimeout);
+                }
+                this.visualSyncTimeout = setTimeout(() => {
+                    this.syncJudgeFixerToVisualConfig();
+                }, 300);
             },
             deep: true
         },
 
         fixerModelConfig: {
             handler() {
-                this.syncJudgeFixerToVisualConfig();
+                // Prevent infinite loops during config load/sync
+                if (this.isSyncing) return;
+
+                // Debounce to prevent excessive syncing
+                if (this.visualSyncTimeout) {
+                    clearTimeout(this.visualSyncTimeout);
+                }
+                this.visualSyncTimeout = setTimeout(() => {
+                    this.syncJudgeFixerToVisualConfig();
+                }, 300);
             },
             deep: true
         },
@@ -643,6 +684,9 @@ createApp({
             this.configLoading = true;
             this.configLoadError = null;
 
+            // Prevent watchers from triggering during load (avoid infinite loops)
+            this.isSyncing = true;
+
             // Timeout after 10 seconds
             const timeout = new Promise((_, reject) => {
                 setTimeout(() => reject(new Error('Config load timeout (10s)')), 10000);
@@ -650,7 +694,10 @@ createApp({
 
             try {
                 // Race between fetch and timeout
-                const fetchPromise = fetch('/api/config').then(r => r.json());
+                const fetchPromise = fetch('/api/config').then(r => {
+                    if (!r.ok) throw new Error(`API error: ${r.status}`);
+                    return r.json();
+                });
                 const data = await Promise.race([fetchPromise, timeout]);
 
                 // Store complete YAML with comments (working copy)
@@ -721,30 +768,28 @@ createApp({
                     this.configLoadError = 'Error parsing config YAML: ' + yamlError.message;
                     this.showToast('Error parsing config YAML', 'error');
                     this.configLoading = false;
+                    this.isSyncing = false; // Re-enable watchers on YAML parse error
                     return;
                 }
 
                 // Load backups
                 await this.loadConfigBackups();
 
-                // Wait for DOM to update before initializing CodeMirror
-                await this.$nextTick();
-
-                // Initialize CodeMirror eagerly (so YAML modal opens instantly)
-                // CodeMirror can initialize on hidden elements
-                this.initializeCodeMirror();
-
-                // Wait for CodeMirror to finish initializing
+                // Wait for DOM to update
                 await this.$nextTick();
 
                 // Mark loading complete
                 this.configLoading = false;
+
+                // Re-enable watchers now that initial load is done
+                this.isSyncing = false;
 
             } catch (error) {
                 console.error('Error loading config:', error);
                 this.configLoadError = error.message || 'Failed to load config';
                 this.showToast('Failed to load config: ' + (error.message || 'Unknown error'), 'error');
                 this.configLoading = false;
+                this.isSyncing = false; // Re-enable watchers even on error
 
                 // Re-render icons for error state
                 this.$nextTick(() => {
@@ -760,45 +805,79 @@ createApp({
             if (!textarea || !window.CodeMirror) return;
 
             // Check if already initialized
-            if (textarea.nextSibling && textarea.nextSibling.classList && textarea.nextSibling.classList.contains('CodeMirror')) {
-                // Already initialized, just update content
-                if (this.configEditor) {
+            if (this.configEditor) {
+                // Already initialized, just update content and refresh
+                try {
+                    this.isSyncing = true;
                     this.configEditor.setValue(this.originalYamlText);
+                    this.configEditor.refresh();
+                    this.isSyncing = false;
+                } catch (error) {
+                    console.error('Error updating CodeMirror:', error);
+                    this.isSyncing = false;
                 }
                 return;
             }
 
-            const editor = CodeMirror.fromTextArea(textarea, {
-                mode: 'yaml',
-                theme: 'dracula',
-                lineNumbers: true,
-                indentUnit: 2,
-                tabSize: 2,
-                lineWrapping: true,
-                viewportMargin: Infinity,
-            });
+            // Not initialized yet, create new instance
+            try {
+                const editor = CodeMirror.fromTextArea(textarea, {
+                    mode: 'yaml',
+                    theme: 'dracula',
+                    lineNumbers: true,
+                    indentUnit: 2,
+                    tabSize: 2,
+                    lineWrapping: true,
+                    viewportMargin: Infinity,
+                });
 
-            // Set editor height
-            editor.setSize(null, '500px');
+                // Set editor height
+                editor.setSize(null, '500px');
 
-            // Handle YAML changes and sync to visual editor
-            editor.on('change', (cm) => {
-                // Prevent infinite loops
-                if (this.isSyncing) return;
+                // Handle YAML changes and sync to visual editor
+                editor.on('change', (cm) => {
+                    // Prevent infinite loops
+                    if (this.isSyncing) return;
 
-                const yamlText = cm.getValue();
-                this.configContent = yamlText;
-                this.originalYamlText = yamlText;
+                    const yamlText = cm.getValue();
+                    this.configContent = yamlText;
+                    this.originalYamlText = yamlText;
 
-                // Parse YAML and update visual editor (YAML → Visual sync)
-                this.syncYamlToVisual(yamlText);
-            });
+                    // Mark that user is actively editing YAML
+                    this.isEditingYaml = true;
 
-            // Store editor instance
-            this.configEditor = editor;
+                    // Clear previous timers
+                    if (this.yamlSyncTimeout) {
+                        clearTimeout(this.yamlSyncTimeout);
+                    }
+                    if (this.yamlEditTimeout) {
+                        clearTimeout(this.yamlEditTimeout);
+                    }
 
-            // Set initial content
-            editor.setValue(this.originalYamlText);
+                    // Sync YAML → Visual after user stops typing
+                    this.yamlSyncTimeout = setTimeout(() => {
+                        this.syncYamlToVisual(yamlText);
+                    }, 500);
+
+                    // Mark editing as finished 2 seconds after last keystroke
+                    this.yamlEditTimeout = setTimeout(() => {
+                        this.isEditingYaml = false;
+                    }, 2000);
+                });
+
+                // Store editor instance
+                this.configEditor = editor;
+
+                // Set initial content
+                this.isSyncing = true;
+                editor.setValue(this.originalYamlText);
+                this.isSyncing = false;
+
+                // Refresh to ensure proper rendering
+                editor.refresh();
+            } catch (error) {
+                console.error('Error initializing CodeMirror:', error);
+            }
         },
 
         async validateConfig() {
@@ -828,35 +907,45 @@ createApp({
         },
 
         async saveConfig() {
-            // Validate first
+            // Show saving immediately (non-blocking UI)
+            this.configSaving = true;
+
+            // Validate first (in background)
             await this.validateConfig();
 
             if (this.configErrors.length > 0) {
+                this.configSaving = false;
                 this.showToast('Please fix validation errors before saving', 'error');
                 return;
             }
 
-            this.configSaving = true;
             try {
-                const response = await fetch('/api/config/save', {
+                // Save in background without blocking
+                const savePromise = fetch('/api/config/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         // Save originalYamlText (working copy with comments when possible)
                         yaml_content: this.originalYamlText
                     })
+                }).then(r => r.json());
+
+                // Handle response asynchronously
+                savePromise.then(data => {
+                    this.showToast(data.message || 'Config saved', 'success');
+                    this.configSaving = false;
+
+                    // Reload backups in background
+                    this.loadConfigBackups();
+                }).catch(error => {
+                    console.error('Error saving config:', error);
+                    this.showToast('Failed to save config', 'error');
+                    this.configSaving = false;
                 });
-
-                const data = await response.json();
-                this.showToast(data.message || 'Config saved', 'success');
-
-                // Reload backups
-                await this.loadConfigBackups();
 
             } catch (error) {
                 console.error('Error saving config:', error);
                 this.showToast('Failed to save config', 'error');
-            } finally {
                 this.configSaving = false;
             }
         },
@@ -892,11 +981,36 @@ createApp({
             }
         },
 
+        async deleteConfigBackup(backupName) {
+            if (!confirm(`Delete backup ${backupName}? This cannot be undone.`)) return;
+
+            try {
+                const response = await fetch(`/api/config/backups/${backupName}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                this.showToast(data.message, 'success');
+
+                // Reload backups list
+                await this.loadConfigBackups();
+
+            } catch (error) {
+                console.error('Error deleting backup:', error);
+                this.showToast('Failed to delete backup', 'error');
+            }
+        },
+
         // ====================================================================
         // Visual Config Editor Methods
         // ====================================================================
 
         syncVisualToYaml() {
+            // Don't update YAML editor if user is actively editing it
+            if (this.isEditingYaml) {
+                return;
+            }
+
             // Sync judge and fixer configs into model_configs
             this.syncJudgeFixerToVisualConfig();
 
@@ -917,11 +1031,16 @@ createApp({
                 this.originalYamlText = yamlContent;
                 this.configContent = yamlContent;
 
-                // Update CodeMirror if it exists (prevent infinite loop)
+                // Update CodeMirror if it exists and content has changed
                 if (this.configEditor) {
-                    this.isSyncing = true;
-                    this.configEditor.setValue(yamlContent);
-                    this.isSyncing = false;
+                    const currentValue = this.configEditor.getValue();
+
+                    // Only update if content actually changed (prevents unnecessary updates)
+                    if (currentValue !== yamlContent) {
+                        this.isSyncing = true;
+                        this.configEditor.setValue(yamlContent);
+                        this.isSyncing = false;
+                    }
                 }
             } catch (error) {
                 console.error('Error converting to YAML:', error);
@@ -1188,7 +1307,7 @@ createApp({
                     this.stripOuterBraces(JSON.stringify(config.options, null, 2)) : '';
             }
 
-            // Re-render icons
+            // Re-render icons after DOM update
             this.$nextTick(() => {
                 if (window.lucide) {
                     lucide.createIcons();
@@ -1230,6 +1349,9 @@ createApp({
                 return;
             }
 
+            // Prevent watchers from triggering during save
+            this.isSyncing = true;
+
             // Save config
             const config = this.editingModelConfigs[modelId];
             if (config.system_instruction || Object.keys(config.options).length > 0) {
@@ -1238,8 +1360,13 @@ createApp({
                 delete this.visualConfig.model_configs[modelId];
             }
 
+            // Re-enable watchers
+            this.isSyncing = false;
+
             this.showToast(`Model ${modelId} configuration saved`, 'success');
-            this.toggleModelExpand(modelId);
+
+            // Collapse the model card (don't use toggle to avoid triggering watchers)
+            this.expandedModels[modelId] = false;
         },
 
         addProviderLimit() {

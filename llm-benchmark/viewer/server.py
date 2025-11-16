@@ -44,9 +44,16 @@ class FixRequest(BaseModel):
     fixer_model: Optional[str] = None  # If not provided, uses default from config
 
 
-# Load configuration
+# Define project root (parent of viewer directory)
+PROJECT_ROOT = Path(__file__).parent.parent
+
+# Change working directory to project root so all relative paths work correctly
+# This ensures oauth_creds, results, etc. are created in the project root
+os.chdir(PROJECT_ROOT)
+
+# Load configuration from project root
 try:
-    config = ConfigLoader()
+    config = ConfigLoader(str(PROJECT_ROOT / "config.yaml"))
 except:
     config = None
 
@@ -178,9 +185,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize managers
-results_manager = ResultsManager()
-question_loader = QuestionLoader()
+# Initialize managers with paths relative to project root
+results_dir = str(PROJECT_ROOT / (config.results_dir if config else "results"))
+questions_dir = str(PROJECT_ROOT / (config.questions_dir if config else "questions"))
+
+results_manager = ResultsManager(results_dir)
+question_loader = QuestionLoader(questions_dir)
 
 # Try to load questions
 try:
@@ -594,7 +604,7 @@ async def regenerate_response(run_id: str, model_name: str, question_id: str):
 
         # Load config to get model settings
         try:
-            config = ConfigLoader("config.yaml")
+            config = ConfigLoader(str(PROJECT_ROOT / "config.yaml"))
         except (FileNotFoundError, ValueError):
             # If config not found, use empty defaults
             config = None
@@ -1572,9 +1582,16 @@ async def save_config(request: ConfigSaveRequest):
         except yaml.YAMLError as e:
             raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
 
-        # Create backup
+        # Create backup with sequential numbering (bak1, bak2, bak3, etc.)
         if config_path.exists():
-            backup_path = project_root / "config.yaml.bak"
+            # Find the next available backup number
+            backup_num = 1
+            while True:
+                backup_path = project_root / f"config.yaml.bak{backup_num}"
+                if not backup_path.exists():
+                    break
+                backup_num += 1
+
             shutil.copy(config_path, backup_path)
             backup_created = str(backup_path)
         else:
@@ -1645,6 +1662,32 @@ async def restore_config(backup_name: str):
         return {
             "success": True,
             "message": f"Config restored from {backup_name}"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/config/backups/{backup_name}")
+async def delete_config_backup(backup_name: str):
+    """Delete a specific config backup."""
+    try:
+        # Use parent directory (project root)
+        project_root = Path(__file__).parent.parent
+        backup_path = project_root / backup_name
+
+        # Validate backup file name and existence
+        if not backup_path.exists() or not backup_path.name.startswith("config.yaml.bak"):
+            raise HTTPException(status_code=404, detail="Backup not found")
+
+        # Delete the backup file
+        backup_path.unlink()
+
+        return {
+            "success": True,
+            "message": f"Backup {backup_name} deleted successfully"
         }
 
     except HTTPException:

@@ -728,7 +728,12 @@
                                         <div class="flex items-center space-x-2">
                                             <button @click.stop="toggleModelExpand(model)"
                                                     class="text-gray-400 hover:text-white">
-                                                <i :data-lucide="expandedModels[model] ? 'chevron-up' : 'chevron-down'" class="w-5 h-5"></i>
+                                                <svg v-if="!expandedModels[model]" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                                </svg>
+                                                <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="18 15 12 9 6 15"></polyline>
+                                                </svg>
                                             </button>
                                         </div>
 
@@ -1058,10 +1063,18 @@
                                  class="p-2 bg-gray-700 rounded text-sm">
                                 <div class="font-medium">{{ backup.filename }}</div>
                                 <div class="text-xs text-gray-400 mt-1">{{ new Date(backup.modified).toLocaleString() }}</div>
-                                <button @click="restoreConfigBackup(backup.filename)"
-                                        class="mt-2 text-xs text-red-400 hover:text-red-300">
-                                    Restore
-                                </button>
+                                <div class="flex items-center space-x-2 mt-2">
+                                    <button @click="restoreConfigBackup(backup.filename)"
+                                            class="text-xs text-green-400 hover:text-green-300 flex items-center space-x-1">
+                                        <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+                                        <span>Restore</span>
+                                    </button>
+                                    <button @click="deleteConfigBackup(backup.filename)"
+                                            class="text-xs text-red-400 hover:text-red-300 flex items-center space-x-1">
+                                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                        <span>Delete</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div v-else class="text-sm text-gray-500">
