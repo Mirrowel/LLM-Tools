@@ -97,6 +97,10 @@ class BenchmarkRunner:
         Returns:
             str: The run_id for the completed benchmark
         """
+        # Store concurrency settings for use in benchmark runs
+        self.max_concurrent = max_concurrent
+        self.provider_concurrency = provider_concurrency
+
         self.console.print("[bold red]🔴 MirroBench - Starting Benchmark[/bold red]")
         self.console.print(f"Models: {', '.join(models)}")
         self.console.print(f"Judge Model: {self.judge_model}\n")
@@ -201,9 +205,19 @@ class BenchmarkRunner:
             questions: List of questions to test
             max_concurrent: Concurrency limit (already provider-specific if configured)
         """
-        # Create semaphore with the provided concurrency limit
+        # Create semaphore for model response generation with the provided concurrency limit
         # (this is already provider-specific if provider_concurrency was configured)
-        semaphore = asyncio.Semaphore(max_concurrent)
+        model_semaphore = asyncio.Semaphore(max_concurrent)
+
+        # Create SEPARATE semaphore for judge evaluations based on judge model's provider
+        judge_provider = self._get_provider_from_model(self.judge_model)
+        judge_concurrency = self.max_concurrent  # Default to global max
+        if self.provider_concurrency and judge_provider in self.provider_concurrency:
+            judge_concurrency = self.provider_concurrency[judge_provider]
+            self.console.print(
+                f"[dim]Using judge-specific concurrency: {judge_concurrency} for {judge_provider}[/dim]\n"
+            )
+        judge_semaphore = asyncio.Semaphore(judge_concurrency)
 
         with Progress(
             SpinnerColumn(),
@@ -213,7 +227,7 @@ class BenchmarkRunner:
             TimeElapsedColumn(),
             console=self.console,
         ) as progress:
-            # Phase 1: Generate responses
+            # Phase 1: Generate responses (use model_semaphore)
             response_task = progress.add_task(
                 f"[cyan]Generating responses...", total=len(questions)
             )
@@ -223,13 +237,13 @@ class BenchmarkRunner:
 
             for question in questions:
                 task = self._generate_response_with_semaphore(
-                    semaphore, model, question, progress, response_task
+                    model_semaphore, model, question, progress, response_task
                 )
                 tasks.append(task)
 
             responses = await asyncio.gather(*tasks)
 
-            # Phase 2: Evaluate responses
+            # Phase 2: Evaluate responses (use judge_semaphore)
             eval_task = progress.add_task(
                 f"[yellow]Evaluating responses...", total=len(questions)
             )
@@ -237,7 +251,7 @@ class BenchmarkRunner:
             eval_tasks = []
             for question, response in zip(questions, responses):
                 task = self._evaluate_response_with_semaphore(
-                    semaphore, question, response, progress, eval_task
+                    judge_semaphore, question, response, progress, eval_task
                 )
                 eval_tasks.append(task)
 

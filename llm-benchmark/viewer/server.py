@@ -1268,8 +1268,19 @@ async def start_comparative_judge(request: ComparativeJudgeRequest):
         judge_model = config.judge_model if config else "anthropic/claude-3-5-sonnet-20241022"
         evaluator = ComparativeJudgeEvaluator(client, judge_model)
 
-        # Start job in background
-        job_runner.start_job(job_id, evaluator, question_loader, results_manager)
+        # Get concurrency settings from config
+        max_concurrent = config.max_concurrent if config else 3
+        provider_concurrency = config.provider_concurrency if config else None
+
+        # Start job in background with concurrency settings
+        job_runner.start_job(
+            job_id,
+            evaluator,
+            question_loader,
+            results_manager,
+            max_concurrent,
+            provider_concurrency
+        )
 
         return {"job_id": job_id, "status": "started"}
 

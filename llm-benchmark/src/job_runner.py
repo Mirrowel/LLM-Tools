@@ -109,12 +109,104 @@ class JobRunner:
             reverse=True
         )
 
+    def _get_provider_from_model(self, model: str) -> str:
+        """Extract provider name from model string.
+
+        Args:
+            model: Model string like "openai/gpt-4" or "opencode/big-pickle"
+
+        Returns:
+            Provider name like "openai" or "opencode"
+        """
+        if "/" in model:
+            return model.split("/")[0]
+        return "unknown"
+
+    async def _evaluate_question_with_semaphore(
+        self,
+        semaphore: asyncio.Semaphore,
+        job: ComparativeJudgeJob,
+        question_id: str,
+        evaluator,
+        question_loader,
+        results_manager,
+        results_path: Path
+    ) -> Optional[Dict]:
+        """
+        Evaluate a single question with concurrency control.
+
+        Args:
+            semaphore: Semaphore for concurrency control
+            job: Job instance
+            question_id: ID of question to evaluate
+            evaluator: ComparativeJudgeEvaluator instance
+            question_loader: QuestionLoader instance
+            results_manager: ResultsManager instance
+            results_path: Path to save results
+
+        Returns:
+            Dict with evaluation results or None if skipped
+        """
+        async with semaphore:
+            try:
+                # Get question
+                question = question_loader.get_question(question_id)
+                if not question:
+                    print(f"Question {question_id} not found, skipping")
+                    return None
+
+                # Collect responses from all runs
+                responses = {}
+                for run_id in job.run_ids:
+                    # Get run metadata to find model name
+                    run = results_manager.get_run(run_id)
+                    if not run:
+                        continue
+
+                    # Get response for this model
+                    response = results_manager.get_response(
+                        run_id,
+                        run.model,
+                        question_id
+                    )
+                    if response:
+                        responses[run.model] = response
+
+                if not responses:
+                    print(f"No responses found for question {question_id}, skipping")
+                    return None
+
+                # Run comparative evaluation
+                results = await evaluator.evaluate_question(
+                    question,
+                    responses
+                )
+
+                # Save results for this question
+                question_results = {
+                    'question_id': question_id,
+                    'timestamp': datetime.now().isoformat(),
+                    'results': results
+                }
+
+                question_file = results_path / f"{question_id}.json"
+                with open(question_file, 'w') as f:
+                    json.dump(question_results, f, indent=2)
+
+                return results
+
+            except Exception as e:
+                print(f"Error evaluating question {question_id}: {e}")
+                raise  # Re-raise to be caught by gather
+
     async def run_job(
         self,
         job_id: str,
         evaluator,
         question_loader,
-        results_manager
+        results_manager,
+        max_concurrent: int = 3,
+        provider_concurrency: Optional[Dict[str, int]] = None
     ):
         """
         Execute a comparative judge job asynchronously.
@@ -124,6 +216,8 @@ class JobRunner:
             evaluator: ComparativeJudgeEvaluator instance
             question_loader: QuestionLoader instance
             results_manager: ResultsManager instance
+            max_concurrent: Maximum number of concurrent requests (global default)
+            provider_concurrency: Per-provider concurrency limits (optional)
         """
         job = self.jobs.get(job_id)
         if not job:
@@ -142,64 +236,47 @@ class JobRunner:
             # Save job metadata
             self._save_job_metadata(job)
 
-            # Process each question
-            all_results = {}
+            # Determine judge concurrency based on judge model's provider
+            judge_provider = self._get_provider_from_model(evaluator.judge_model)
+            judge_concurrency = max_concurrent
+            if provider_concurrency and judge_provider in provider_concurrency:
+                judge_concurrency = provider_concurrency[judge_provider]
+                print(f"Using judge-specific concurrency: {judge_concurrency} for {judge_provider}")
 
-            for i, question_id in enumerate(job.question_ids):
+            # Create semaphore for concurrent judge evaluations
+            semaphore = asyncio.Semaphore(judge_concurrency)
+
+            # Process questions concurrently
+            all_results = {}
+            tasks = []
+
+            for question_id in job.question_ids:
+                task = self._evaluate_question_with_semaphore(
+                    semaphore,
+                    job,
+                    question_id,
+                    evaluator,
+                    question_loader,
+                    results_manager,
+                    results_path
+                )
+                tasks.append(task)
+
+            # Run all evaluations concurrently
+            results_list = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Process results
+            for i, (question_id, result) in enumerate(zip(job.question_ids, results_list)):
                 # Update progress
-                job.progress.current = i
+                job.progress.current = i + 1
                 job.progress.current_question = question_id
 
-                try:
-                    # Get question
-                    question = question_loader.get_question(question_id)
-                    if not question:
-                        print(f"Question {question_id} not found, skipping")
-                        continue
-
-                    # Collect responses from all runs
-                    responses = {}
-                    for run_id in job.run_ids:
-                        # Get run metadata to find model name
-                        run = results_manager.get_run(run_id)
-                        if not run:
-                            continue
-
-                        # Get response for this model
-                        response = results_manager.get_response(
-                            run_id,
-                            run.model,
-                            question_id
-                        )
-                        if response:
-                            responses[run.model] = response
-
-                    if not responses:
-                        print(f"No responses found for question {question_id}, skipping")
-                        continue
-
-                    # Run comparative evaluation
-                    results = await evaluator.evaluate_question(
-                        question,
-                        responses
-                    )
-
-                    # Save results for this question
-                    question_results = {
-                        'question_id': question_id,
-                        'timestamp': datetime.now().isoformat(),
-                        'results': results
-                    }
-
-                    question_file = results_path / f"{question_id}.json"
-                    with open(question_file, 'w') as f:
-                        json.dump(question_results, f, indent=2)
-
-                    all_results[question_id] = results
-
-                except Exception as e:
-                    print(f"Error evaluating question {question_id}: {e}")
+                if isinstance(result, Exception):
+                    print(f"Error evaluating question {question_id}: {result}")
                     continue
+
+                if result is not None:
+                    all_results[question_id] = result
 
             # Calculate aggregate leaderboard
             leaderboard = self._calculate_leaderboard(all_results)
@@ -228,7 +305,9 @@ class JobRunner:
         job_id: str,
         evaluator,
         question_loader,
-        results_manager
+        results_manager,
+        max_concurrent: int = 3,
+        provider_concurrency: Optional[Dict[str, int]] = None
     ) -> asyncio.Task:
         """
         Start a job in the background.
@@ -238,12 +317,21 @@ class JobRunner:
             evaluator: ComparativeJudgeEvaluator instance
             question_loader: QuestionLoader instance
             results_manager: ResultsManager instance
+            max_concurrent: Maximum number of concurrent requests (global default)
+            provider_concurrency: Per-provider concurrency limits (optional)
 
         Returns:
             asyncio.Task that's running the job
         """
         task = asyncio.create_task(
-            self.run_job(job_id, evaluator, question_loader, results_manager)
+            self.run_job(
+                job_id,
+                evaluator,
+                question_loader,
+                results_manager,
+                max_concurrent,
+                provider_concurrency
+            )
         )
         self.running_tasks[job_id] = task
         return task
