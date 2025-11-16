@@ -1584,6 +1584,69 @@ async def get_human_ratings_leaderboard(run_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/human-ratings/unified-leaderboard")
+async def get_unified_human_ratings_leaderboard():
+    """Get unified leaderboard based on human ratings across all runs."""
+    try:
+        # Collect ratings per model across ALL runs
+        model_ratings = {}
+
+        # Iterate through all runs
+        for run_dir in results_manager.results_dir.iterdir():
+            if not run_dir.is_dir():
+                continue
+
+            ratings_dir = run_dir / "human_ratings"
+            if not ratings_dir.exists():
+                continue
+
+            # Process each model's ratings in this run
+            for model_dir in ratings_dir.iterdir():
+                if not model_dir.is_dir():
+                    continue
+
+                model_name = model_dir.name
+
+                # Initialize model entry if not exists
+                if model_name not in model_ratings:
+                    model_ratings[model_name] = {
+                        'ratings': [],
+                        'runs': set()
+                    }
+
+                # Collect all ratings for this model in this run
+                for rating_file in model_dir.glob("*.json"):
+                    try:
+                        with open(rating_file, 'r') as f:
+                            rating_data = json.load(f)
+                            model_ratings[model_name]['ratings'].append(rating_data['score'])
+                            model_ratings[model_name]['runs'].add(run_dir.name)
+                    except (json.JSONDecodeError, KeyError):
+                        continue
+
+        # Build unified leaderboard
+        leaderboard = []
+        for model_name, data in model_ratings.items():
+            ratings = data['ratings']
+            if ratings:
+                leaderboard.append({
+                    'model_name': model_name,
+                    'average_score': sum(ratings) / len(ratings),
+                    'total_rated': len(ratings),
+                    'min_score': min(ratings),
+                    'max_score': max(ratings),
+                    'runs_count': len(data['runs'])
+                })
+
+        # Sort by average score (descending)
+        leaderboard.sort(key=lambda x: x['average_score'], reverse=True)
+
+        return {"leaderboard": leaderboard}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============================================================================
 # Author's Choice API Endpoints
 # ============================================================================

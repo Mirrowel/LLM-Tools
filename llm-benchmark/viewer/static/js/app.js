@@ -41,6 +41,9 @@ createApp({
             humanJudgeLeaderboard: [],
             humanJudgeQuestions: [],
             humanJudgeLoading: false,
+            humanJudgeUnifiedLeaderboard: [],
+            humanJudgeUnifiedLoading: false,
+            showRatingSection: false,
             selectedQuestionForRating: null,
             currentRating: { score: 50, comment: '' },
 
@@ -317,6 +320,7 @@ createApp({
                 await this.loadLeaderboard();
                 await this.loadRuns();
                 await this.loadQuestions();
+                await this.loadUnifiedHumanJudgeLeaderboard();
             } catch (error) {
                 console.error('Error loading data:', error);
                 this.showToast('Failed to load data', 'error');
@@ -382,6 +386,13 @@ createApp({
             if (score >= 80) return 'text-green-400';
             if (score >= 60) return 'text-yellow-400';
             return 'text-red-400';
+        },
+
+        getScoreClass(score) {
+            if (score >= 80) return 'score-excellent';
+            if (score >= 60) return 'score-good';
+            if (score >= 40) return 'score-fair';
+            return 'score-poor';
         },
 
         // ====================================================================
@@ -541,6 +552,20 @@ createApp({
             }
         },
 
+        async loadUnifiedHumanJudgeLeaderboard() {
+            this.humanJudgeUnifiedLoading = true;
+            try {
+                const response = await fetch('/api/human-ratings/unified-leaderboard');
+                const data = await response.json();
+                this.humanJudgeUnifiedLeaderboard = data.leaderboard || [];
+            } catch (error) {
+                console.error('Error loading unified human judge leaderboard:', error);
+                this.humanJudgeUnifiedLeaderboard = [];
+            } finally {
+                this.humanJudgeUnifiedLoading = false;
+            }
+        },
+
         async loadHumanJudgeLeaderboard() {
             if (!this.humanJudgeSelectedRun) return;
 
@@ -618,6 +643,7 @@ createApp({
                 this.closeRatingModal();
 
                 // Reload data
+                await this.loadUnifiedHumanJudgeLeaderboard();
                 await this.loadHumanJudgeLeaderboard();
                 await this.loadHumanJudgeQuestions();
 

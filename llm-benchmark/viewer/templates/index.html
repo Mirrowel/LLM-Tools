@@ -313,69 +313,134 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <h2 class="text-3xl font-bold">Human Judge</h2>
-                            <p class="text-gray-400">Rate model responses manually with your own judgment</p>
+                            <p class="text-gray-400">Your personal ratings leaderboard across all benchmarks</p>
                         </div>
-                        <select v-model="humanJudgeSelectedRun" @change="loadHumanJudgeData" class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white">
-                            <option v-for="run in runs" :key="run.run_id" :value="run.run_id">
-                                {{ getDisplayName(run.model) }} - {{ run.timestamp }}
-                            </option>
-                        </select>
                     </div>
 
-                    <div v-if="humanJudgeLoading" class="flex items-center justify-center py-12">
+                    <div v-if="humanJudgeUnifiedLoading" class="flex items-center justify-center py-12">
                         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
                     </div>
 
-                    <div v-else-if="humanJudgeSelectedRun" class="space-y-6">
-                        <!-- Leaderboard Summary -->
-                        <div v-if="humanJudgeLeaderboard.length > 0" class="bg-gray-800 rounded-lg p-6">
-                            <h3 class="text-xl font-semibold mb-4">Your Ratings Summary</h3>
-                            <div class="space-y-2">
-                                <div v-for="(entry, index) in humanJudgeLeaderboard" :key="entry.model_name" class="flex items-center justify-between p-3 bg-gray-700 rounded">
-                                    <div class="flex items-center space-x-3">
-                                        <span v-if="index === 0" class="text-2xl">🥇</span>
-                                        <span v-else-if="index === 1" class="text-2xl">🥈</span>
-                                        <span v-else-if="index === 2" class="text-2xl">🥉</span>
-                                        <span v-else class="text-gray-400 w-8">{{ index + 1 }}</span>
-                                        <span class="font-medium">{{ getDisplayName(entry.model_name) }}</span>
+                    <!-- Unified Leaderboard -->
+                    <div v-else-if="humanJudgeUnifiedLeaderboard.length > 0" class="space-y-6">
+                        <div class="leaderboard-container">
+                            <div class="leaderboard-header">
+                                <h3 class="text-2xl font-bold">Overall Rankings</h3>
+                                <p class="text-sm text-gray-400 mt-1">Based on all your ratings across all runs</p>
+                            </div>
+                            <div class="leaderboard-grid">
+                                <div v-for="(entry, index) in humanJudgeUnifiedLeaderboard"
+                                     :key="entry.model_name"
+                                     class="leaderboard-card"
+                                     :class="{'rank-1': index === 0, 'rank-2': index === 1, 'rank-3': index === 2}"
+                                     :style="{'animation-delay': (index * 50) + 'ms'}">
+                                    <div class="leaderboard-rank">
+                                        <div class="rank-badge" :class="'rank-' + (index + 1)">
+                                            <span v-if="index === 0" class="medal">🥇</span>
+                                            <span v-else-if="index === 1" class="medal">🥈</span>
+                                            <span v-else-if="index === 2" class="medal">🥉</span>
+                                            <span v-else class="rank-number">#{{ index + 1 }}</span>
+                                        </div>
                                     </div>
-                                    <div class="flex items-center space-x-4">
-                                        <span :class="getScoreColor(entry.average_score)" class="font-bold text-lg">
-                                            {{ entry.average_score.toFixed(1) }}
-                                        </span>
-                                        <span class="text-sm text-gray-400">
-                                            {{ entry.total_rated }} rated
-                                        </span>
+                                    <div class="leaderboard-info">
+                                        <h4 class="model-name">{{ getDisplayName(entry.model_name) }}</h4>
+                                        <div class="stats-row">
+                                            <div class="stat">
+                                                <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                                <span>{{ entry.total_rated }} rated</span>
+                                            </div>
+                                            <div class="stat">
+                                                <i data-lucide="layers" class="w-4 h-4"></i>
+                                                <span>{{ entry.runs_count }} runs</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="leaderboard-score">
+                                        <div class="score-badge" :class="getScoreClass(entry.average_score)">
+                                            <span class="score-value">{{ entry.average_score.toFixed(1) }}</span>
+                                            <span class="score-label">avg</span>
+                                        </div>
+                                        <div class="score-range">
+                                            <span class="text-xs text-gray-500">{{ entry.min_score.toFixed(0) }}–{{ entry.max_score.toFixed(0) }}</span>
+                                        </div>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" :style="{width: entry.average_score + '%'}" :class="getScoreClass(entry.average_score)"></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Questions List -->
-                        <div class="bg-gray-800 rounded-lg overflow-hidden">
-                            <div class="p-4 bg-gray-900 border-b border-gray-700">
-                                <h3 class="text-xl font-semibold">Questions</h3>
-                            </div>
-                            <div class="divide-y divide-gray-700">
-                                <div v-for="question in humanJudgeQuestions" :key="question.id"
-                                     class="p-4 hover:bg-gray-700 transition cursor-pointer"
-                                     @click="openRatingModal(question)">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex-1">
-                                            <div class="font-medium">{{ question.id }}</div>
-                                            <div class="text-sm text-gray-400 mt-1">{{ question.prompt?.substring(0, 100) }}...</div>
+                        <!-- Rate More Responses Section -->
+                        <div class="collapsible-section">
+                            <button @click="showRatingSection = !showRatingSection" class="section-toggle">
+                                <div class="flex items-center space-x-3">
+                                    <i data-lucide="plus-circle" class="w-5 h-5" v-if="!showRatingSection"></i>
+                                    <i data-lucide="minus-circle" class="w-5 h-5" v-else></i>
+                                    <span class="text-lg font-semibold">Rate More Responses</span>
+                                </div>
+                                <i data-lucide="chevron-down" class="w-5 h-5 transition-transform" :class="{'rotate-180': showRatingSection}"></i>
+                            </button>
+
+                            <div v-if="showRatingSection" class="section-content">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium mb-2 text-gray-400">Select Run to Rate</label>
+                                    <select v-model="humanJudgeSelectedRun" @change="loadHumanJudgeData" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white">
+                                        <option v-for="run in runs" :key="run.run_id" :value="run.run_id">
+                                            {{ getDisplayName(run.model) }} - {{ run.timestamp }}
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div v-if="humanJudgeLoading" class="flex items-center justify-center py-8">
+                                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
+                                </div>
+
+                                <div v-else-if="humanJudgeSelectedRun" class="space-y-4">
+                                    <!-- Per-Run Summary -->
+                                    <div v-if="humanJudgeLeaderboard.length > 0" class="bg-gray-800 rounded-lg p-4">
+                                        <h4 class="text-sm font-semibold mb-3 text-gray-400">This Run's Rating</h4>
+                                        <div v-for="(entry, index) in humanJudgeLeaderboard" :key="entry.model_name" class="flex items-center justify-between p-2 bg-gray-700 rounded">
+                                            <span class="font-medium text-sm">{{ getDisplayName(entry.model_name) }}</span>
+                                            <div class="flex items-center space-x-3">
+                                                <span :class="getScoreColor(entry.average_score)" class="font-bold">
+                                                    {{ entry.average_score.toFixed(1) }}
+                                                </span>
+                                                <span class="text-xs text-gray-400">
+                                                    {{ entry.total_rated }} rated
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div class="flex items-center space-x-4">
-                                            <div v-if="question.rating" class="text-right">
-                                                <div :class="getScoreColor(question.rating.score)" class="font-bold">
-                                                    {{ question.rating.score }}
+                                    </div>
+
+                                    <!-- Questions List -->
+                                    <div class="bg-gray-800 rounded-lg overflow-hidden">
+                                        <div class="p-3 bg-gray-900 border-b border-gray-700">
+                                            <h4 class="font-semibold">Questions</h4>
+                                        </div>
+                                        <div class="divide-y divide-gray-700 max-h-96 overflow-y-auto">
+                                            <div v-for="question in humanJudgeQuestions" :key="question.id"
+                                                 class="p-3 hover:bg-gray-700 transition cursor-pointer"
+                                                 @click="openRatingModal(question)">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex-1">
+                                                        <div class="font-medium text-sm">{{ question.id }}</div>
+                                                        <div class="text-xs text-gray-400 mt-1">{{ question.prompt?.substring(0, 80) }}...</div>
+                                                    </div>
+                                                    <div class="flex items-center space-x-3">
+                                                        <div v-if="question.rating" class="text-right">
+                                                            <div :class="getScoreColor(question.rating.score)" class="font-bold text-sm">
+                                                                {{ question.rating.score }}
+                                                            </div>
+                                                            <div class="text-xs text-gray-400">Rated</div>
+                                                        </div>
+                                                        <div v-else class="text-gray-500 text-xs">
+                                                            Not rated
+                                                        </div>
+                                                        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-500"></i>
+                                                    </div>
                                                 </div>
-                                                <div class="text-xs text-gray-400">Rated</div>
                                             </div>
-                                            <div v-else class="text-gray-500 text-sm">
-                                                Not rated
-                                            </div>
-                                            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-500"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -384,9 +449,14 @@
                     </div>
 
                     <div v-else class="bg-gray-800 rounded-lg p-12 text-center">
-                        <i data-lucide="user" class="w-16 h-16 mx-auto text-gray-600 mb-4"></i>
-                        <p class="text-xl text-gray-400">No runs available</p>
-                        <p class="text-sm text-gray-500">Run a benchmark first to rate responses</p>
+                        <i data-lucide="star" class="w-16 h-16 mx-auto text-gray-600 mb-4"></i>
+                        <p class="text-xl text-gray-400">No ratings yet</p>
+                        <p class="text-sm text-gray-500 mb-4">Start rating model responses to build your leaderboard</p>
+                        <button @click="showRatingSection = true; humanJudgeSelectedRun = runs[0]?.run_id"
+                                v-if="runs.length > 0"
+                                class="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition">
+                            Start Rating
+                        </button>
                     </div>
                 </div>
 
@@ -1398,79 +1468,120 @@
         <!-- Rating Modal (Human Judge) -->
         <div v-if="selectedQuestionForRating"
              @click.self="closeRatingModal"
-             class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-                <div class="flex items-center justify-between p-6 border-b border-gray-700">
+             class="rating-modal-overlay">
+            <div class="rating-modal">
+                <div class="rating-modal-header">
                     <div class="flex items-center space-x-3">
-                        <i data-lucide="star" class="w-6 h-6 text-red-500"></i>
-                        <h3 class="text-xl font-bold">Rate Response</h3>
+                        <div class="rating-modal-icon">
+                            <i data-lucide="star" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold">Rate Response</h3>
+                            <p class="text-sm text-gray-400">{{ selectedQuestionForRating.id }}</p>
+                        </div>
                     </div>
-                    <button @click="closeRatingModal" class="text-gray-400 hover:text-white">
+                    <button @click="closeRatingModal" class="rating-modal-close">
                         <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
                 </div>
 
-                <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                <div class="rating-modal-body">
                     <!-- Question -->
-                    <div>
-                        <h4 class="font-semibold mb-2">Question</h4>
-                        <div class="p-4 bg-gray-900 rounded">{{ selectedQuestionForRating.prompt }}</div>
+                    <div class="rating-section">
+                        <div class="rating-section-header">
+                            <i data-lucide="help-circle" class="w-5 h-5"></i>
+                            <h4 class="font-semibold">Question</h4>
+                        </div>
+                        <div class="rating-content-box">{{ selectedQuestionForRating.prompt }}</div>
                     </div>
 
                     <!-- Response -->
-                    <div>
-                        <h4 class="font-semibold mb-2">Model Response</h4>
-                        <div class="p-4 bg-gray-900 rounded max-h-64 overflow-y-auto">
+                    <div class="rating-section">
+                        <div class="rating-section-header">
+                            <i data-lucide="message-square" class="w-5 h-5"></i>
+                            <h4 class="font-semibold">Model Response</h4>
+                        </div>
+                        <div class="rating-content-box rating-response">
                             <pre class="whitespace-pre-wrap text-sm">{{ selectedQuestionForRating.response?.response_text }}</pre>
                         </div>
                     </div>
 
                     <!-- Rating -->
-                    <div>
-                        <h4 class="font-semibold mb-2">Your Rating</h4>
-                        <div class="space-y-4">
-                            <div>
-                                <div class="flex items-center justify-between mb-2">
-                                    <label class="text-sm text-gray-400">Score (0-100)</label>
+                    <div class="rating-section">
+                        <div class="rating-section-header">
+                            <i data-lucide="award" class="w-5 h-5"></i>
+                            <h4 class="font-semibold">Your Rating</h4>
+                        </div>
+
+                        <div class="rating-input-container">
+                            <!-- Score Display -->
+                            <div class="rating-score-display">
+                                <div class="rating-score-value" :class="getScoreClass(currentRating.score)">
+                                    {{ currentRating.score.toFixed(1) }}
+                                </div>
+                                <div class="rating-score-label" :class="getScoreClass(currentRating.score)">
+                                    <span v-if="currentRating.score >= 80">Excellent</span>
+                                    <span v-else-if="currentRating.score >= 60">Good</span>
+                                    <span v-else-if="currentRating.score >= 40">Fair</span>
+                                    <span v-else>Poor</span>
+                                </div>
+                            </div>
+
+                            <!-- Score Inputs -->
+                            <div class="rating-inputs">
+                                <div class="flex items-center justify-between mb-3">
+                                    <label class="text-sm font-medium text-gray-300">Score (0-100)</label>
                                     <input type="number"
                                            v-model.number="currentRating.score"
                                            min="0"
                                            max="100"
                                            step="0.1"
-                                           class="w-24 px-3 py-1 bg-gray-700 border border-gray-600 rounded text-white text-center">
+                                           class="rating-number-input">
                                 </div>
-                                <input type="range"
-                                       v-model.number="currentRating.score"
-                                       min="0"
-                                       max="100"
-                                       step="0.1"
-                                       class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-                                <div class="flex justify-between text-xs text-gray-500 mt-1">
-                                    <span>0</span>
-                                    <span>50</span>
-                                    <span>100</span>
+
+                                <div class="rating-slider-container">
+                                    <input type="range"
+                                           v-model.number="currentRating.score"
+                                           min="0"
+                                           max="100"
+                                           step="0.1"
+                                           class="rating-slider"
+                                           :class="getScoreClass(currentRating.score)">
+                                    <div class="rating-slider-track" :style="{width: currentRating.score + '%'}" :class="getScoreClass(currentRating.score)"></div>
+                                </div>
+
+                                <div class="flex justify-between text-xs text-gray-500 mt-2">
+                                    <span>Poor (0)</span>
+                                    <span>Fair (50)</span>
+                                    <span>Excellent (100)</span>
                                 </div>
                             </div>
 
-                            <div>
-                                <label class="text-sm text-gray-400 block mb-2">Comment (optional)</label>
+                            <!-- Comment -->
+                            <div class="rating-comment-container">
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="text-sm font-medium text-gray-300">Comment (optional)</label>
+                                    <span class="text-xs text-gray-500">{{ currentRating.comment?.length || 0 }} / 500</span>
+                                </div>
                                 <textarea v-model="currentRating.comment"
                                           rows="3"
-                                          placeholder="Add notes about your rating..."
-                                          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white resize-none"></textarea>
+                                          maxlength="500"
+                                          placeholder="Add notes about your rating (e.g., accuracy, clarity, helpfulness)..."
+                                          class="rating-textarea"></textarea>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex items-center justify-end space-x-3 p-6 border-t border-gray-700">
+                <div class="rating-modal-footer">
                     <button @click="closeRatingModal"
-                            class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg">
-                        Cancel
+                            class="btn-secondary">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                        <span>Cancel</span>
                     </button>
                     <button @click="saveRating"
-                            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center space-x-2">
-                        <i data-lucide="save" class="w-4 h-4"></i>
+                            class="btn-primary">
+                        <i data-lucide="check" class="w-4 h-4"></i>
                         <span>Save Rating</span>
                     </button>
                 </div>
