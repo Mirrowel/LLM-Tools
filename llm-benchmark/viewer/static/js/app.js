@@ -1720,14 +1720,18 @@ createApp({
             }
 
             try {
-                // Send data to popout window
-                this.benchmarkLogPopout.postMessage({
+                // Convert Vue reactive objects to plain objects for postMessage
+                // This is necessary because Vue 3 Proxy objects cannot be cloned
+                const plainData = JSON.parse(JSON.stringify({
                     type: 'benchmark-update',
                     status: this.benchmarkStatus,
                     job: this.benchmarkJob,
                     progress: this.benchmarkProgress,
                     logs: this.benchmarkLogs
-                }, window.location.origin);
+                }));
+
+                // Send data to popout window
+                this.benchmarkLogPopout.postMessage(plainData, window.location.origin);
             } catch (error) {
                 console.error('Error updating popout window:', error);
             }

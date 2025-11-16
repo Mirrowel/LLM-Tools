@@ -470,6 +470,7 @@ async def re_evaluate_response(run_id: str, model_name: str, question_id: str):
         if config:
             client_kwargs["max_retries"] = config.max_retries_per_key
             client_kwargs["global_timeout"] = config.global_timeout
+            client_kwargs["max_concurrent_requests_per_key"] = config.provider_concurrency
         client = RotatingClient(**client_kwargs)
 
         # Get judge model from config or use default
@@ -540,6 +541,7 @@ async def fix_response_formatting(run_id: str, model_name: str, question_id: str
             if config:
                 client_kwargs["max_retries"] = config.max_retries_per_key
                 client_kwargs["global_timeout"] = config.global_timeout
+                client_kwargs["max_concurrent_requests_per_key"] = config.provider_concurrency
             client = RotatingClient(**client_kwargs)
 
             # Use fixer model from request, or config, or default
@@ -636,6 +638,7 @@ async def regenerate_response(run_id: str, model_name: str, question_id: str):
         if config:
             client_kwargs["max_retries"] = config.max_retries_per_key
             client_kwargs["global_timeout"] = config.global_timeout
+            client_kwargs["max_concurrent_requests_per_key"] = config.provider_concurrency
         client = RotatingClient(**client_kwargs)
 
         # Initialize runner with run configuration
@@ -1254,6 +1257,7 @@ async def start_comparative_judge(request: ComparativeJudgeRequest):
         if config:
             client_kwargs["max_retries"] = config.max_retries_per_key
             client_kwargs["global_timeout"] = config.global_timeout
+            client_kwargs["max_concurrent_requests_per_key"] = config.provider_concurrency
         client = RotatingClient(**client_kwargs)
 
         judge_model = config.judge_model if config else "anthropic/claude-3-5-sonnet-20241022"
@@ -1406,6 +1410,7 @@ async def start_benchmark(request: BenchmarkRequest):
         client_kwargs = {"api_keys": dict(api_keys)}
         client_kwargs["max_retries"] = config.max_retries_per_key
         client_kwargs["global_timeout"] = config.global_timeout
+        client_kwargs["max_concurrent_requests_per_key"] = config.provider_concurrency
         client = RotatingClient(**client_kwargs)
 
         # Start benchmark in background

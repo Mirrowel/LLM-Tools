@@ -107,6 +107,7 @@ async def main():
         api_keys=dict(api_keys),
         max_retries=config.max_retries_per_key,
         global_timeout=config.global_timeout,
+        max_concurrent_requests_per_key=config.provider_concurrency,
     )
 
     try:
