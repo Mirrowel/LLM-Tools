@@ -26,6 +26,20 @@ from src.evaluators import LLMJudgeEvaluator, ToolCallValidator, CodeExecutor
 from src.reasoning_extractor import ReasoningExtractor
 
 
+# Tokenizer model name mappings for custom providers
+TOKENIZER_MODEL_MAP = {
+    "opencode/big-pickle": "glm-4.6",
+    "iflow/qwen3-coder-plus": "qwen",
+    "iflow/qwen3-max": "qwen",
+    "iflow/qwen3-turbo": "qwen",
+}
+
+
+def get_tokenizer_model(model_name: str) -> str:
+    """Map custom model names to their tokenizer models."""
+    return TOKENIZER_MODEL_MAP.get(model_name, model_name)
+
+
 class BenchmarkRunner:
     """Main benchmark runner orchestrating the entire process."""
 
@@ -335,6 +349,14 @@ class BenchmarkRunner:
         error = None
         last_progress_time = 0
 
+        # Token counting buffers for batched tokenization
+        content_buffer = ""
+        reasoning_buffer = ""
+        TOKEN_BATCH_SIZE = 200  # Characters to buffer before tokenizing
+        live_token_count = 0
+        live_reasoning_tokens = 0
+        tokenizer_model = get_tokenizer_model(model)
+
         try:
             # Build messages
             messages = []
@@ -443,27 +465,47 @@ class BenchmarkRunner:
                             first_token_time = time.time()
 
                         if delta.get("content"):
-                            response_text += delta["content"]
+                            delta_content = delta["content"]
+                            response_text += delta_content
+                            content_buffer += delta_content
 
                         if delta.get("reasoning_content"):
-                            reasoning_content += delta["reasoning_content"]
+                            delta_reasoning = delta["reasoning_content"]
+                            reasoning_content += delta_reasoning
+                            reasoning_buffer += delta_reasoning
 
                         if delta.get("tool_calls"):
                             if tool_calls is None:
                                 tool_calls = []
                             tool_calls.extend(delta["tool_calls"])
 
-                        # Call progress callback periodically (every 0.5s) if provided
+                        # Batch tokenization - only tokenize when buffer exceeds threshold
+                        if len(content_buffer) > TOKEN_BATCH_SIZE:
+                            new_tokens = await asyncio.to_thread(
+                                self.client.token_count,
+                                model=tokenizer_model,
+                                text=content_buffer
+                            )
+                            live_token_count += new_tokens
+                            content_buffer = ""  # Clear buffer after counting
+
+                        if len(reasoning_buffer) > TOKEN_BATCH_SIZE:
+                            new_tokens = await asyncio.to_thread(
+                                self.client.token_count,
+                                model=tokenizer_model,
+                                text=reasoning_buffer
+                            )
+                            live_reasoning_tokens += new_tokens
+                            reasoning_buffer = ""  # Clear buffer after counting
+
+                        # Call progress callback periodically (every 0.5s) using cached counts
                         if progress_callback and first_token_time is not None:
                             current_time = time.time()
                             if current_time - last_progress_time >= 0.5:
-                                # Rough token count estimation (splitting by spaces)
-                                tokens_so_far = len(response_text.split()) if response_text else 0
-                                reasoning_tokens = len(reasoning_content.split()) if reasoning_content else 0
                                 progress_callback({
                                     'question_id': question.id,
-                                    'tokens_so_far': tokens_so_far,
-                                    'reasoning_tokens': reasoning_tokens,
+                                    'tokens_so_far': live_token_count,
+                                    'reasoning_tokens': live_reasoning_tokens,
                                     'elapsed': current_time - start_time
                                 })
                                 last_progress_time = current_time
@@ -476,6 +518,25 @@ class BenchmarkRunner:
                     continue
 
             end_time = time.time()
+
+            # Final tokenization of any remaining buffer content
+            if content_buffer:
+                new_tokens = await asyncio.to_thread(
+                    self.client.token_count,
+                    model=tokenizer_model,
+                    text=content_buffer
+                )
+                live_token_count += new_tokens
+                content_buffer = ""
+
+            if reasoning_buffer:
+                new_tokens = await asyncio.to_thread(
+                    self.client.token_count,
+                    model=tokenizer_model,
+                    text=reasoning_buffer
+                )
+                live_reasoning_tokens += new_tokens
+                reasoning_buffer = ""
 
             # Extract reasoning from response text if present (e.g., <think>...</think>)
             cleaned_response_text = response_text
