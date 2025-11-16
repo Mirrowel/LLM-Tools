@@ -249,6 +249,9 @@ class AsyncBenchmarkRunner:
                     # We need to wrap the INNER call to log after semaphore acquisition
                     semaphore = args[0] if len(args) > 0 else None
 
+                    # Track timing
+                    start_time = time.time()
+
                     # Intercept to log after semaphore is acquired
                     if semaphore and question:
                         # Manually acquire semaphore first
@@ -272,6 +275,9 @@ class AsyncBenchmarkRunner:
                         # Fallback to original if we can't intercept properly
                         result = await original_generate(*args, **kwargs)
 
+                    # Calculate elapsed time
+                    elapsed = time.time() - start_time
+
                     questions_completed += 1
                     tracker.update(
                         questions_completed=questions_completed,
@@ -287,12 +293,11 @@ class AsyncBenchmarkRunner:
                             )
                         else:
                             # Show more detail about the response
-                            ttft = result.metrics.get('time_to_first_token', 0)
-                            latency = result.metrics.get('latency', 0)
-                            tokens = result.metrics.get('completion_tokens', 0)
-                            reasoning_tokens = result.metrics.get('reasoning_tokens', 0)
+                            ttft = result.metrics.get('time_to_first_token', 0) if result.metrics else 0
+                            tokens = result.metrics.get('completion_tokens', 0) if result.metrics else 0
+                            reasoning_tokens = result.metrics.get('reasoning_tokens', 0) if result.metrics else 0
 
-                            details = f"{latency:.1f}s"
+                            details = f"{elapsed:.1f}s"
                             if ttft > 0:
                                 details += f", TTFT: {ttft:.2f}s"
                             details += f", {tokens} tokens"
@@ -392,10 +397,16 @@ class AsyncBenchmarkRunner:
 
             # Create a timer update task that runs every second
             async def update_timer():
-                """Update elapsed time every second"""
+                """Update elapsed time every second independently"""
                 while not self.cancel_event.is_set():
-                    await asyncio.sleep(1)
-                    tracker.update()  # Just update elapsed time
+                    try:
+                        await asyncio.sleep(1)
+                        tracker.update()  # Just update elapsed time
+                    except asyncio.CancelledError:
+                        break
+                    except Exception as e:
+                        # Continue even if there's an error
+                        continue
 
             # Start timer task
             timer_task = asyncio.create_task(update_timer())

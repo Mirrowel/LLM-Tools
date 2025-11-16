@@ -1650,10 +1650,10 @@ createApp({
             // Stop any existing polling
             this.stopBenchmarkPolling();
 
-            // Poll every 500ms for responsive UI
+            // Poll every 1 second
             this.benchmarkPolling = setInterval(() => {
                 this.pollBenchmarkStatus();
-            }, 500);
+            }, 1000);
         },
 
         stopBenchmarkPolling() {
