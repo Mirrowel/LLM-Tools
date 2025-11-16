@@ -229,16 +229,29 @@ class AsyncBenchmarkRunner:
 
                 job_manager.add_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", level="info")
                 job_manager.add_log(f"Model {current_index + 1}/{len(models)}: {model}", level="info")
+                job_manager.add_log(f"Phase: Generating responses for {questions_total} questions", level="info")
 
                 # Intercept generate and evaluate methods
                 original_generate = runner._generate_response_with_semaphore
                 original_evaluate = runner._evaluate_response_with_semaphore
 
                 questions_completed = 0
+                evaluations_completed = 0
+                evaluation_phase_started = False
 
                 async def tracked_generate(*args, **kwargs):
                     """Track question completion during generation"""
                     nonlocal questions_completed
+
+                    # Log BEFORE generation starts
+                    question = args[2] if len(args) > 2 else None
+                    if question:
+                        job_manager.add_log(
+                            f"[{questions_completed + 1}/{questions_total}] Starting: {question.id}",
+                            level="info"
+                        )
+
+                    # Run generation
                     result = await original_generate(*args, **kwargs)
 
                     questions_completed += 1
@@ -247,17 +260,29 @@ class AsyncBenchmarkRunner:
                         current_phase="generating_responses"
                     )
 
-                    # Log progress
-                    question = args[2] if len(args) > 2 else None
+                    # Log AFTER completion
                     if question:
                         if result.error:
                             job_manager.add_log(
-                                f"[Q{question.id}] {question.id} - Error: {result.error}",
+                                f"[{questions_completed}/{questions_total}] ✗ {question.id} - Error: {result.error}",
                                 level="error"
                             )
                         else:
+                            # Show more detail about the response
+                            ttft = result.metrics.get('time_to_first_token', 0)
+                            latency = result.metrics.get('latency', 0)
+                            tokens = result.metrics.get('completion_tokens', 0)
+                            reasoning_tokens = result.metrics.get('reasoning_tokens', 0)
+
+                            details = f"{latency:.1f}s"
+                            if ttft > 0:
+                                details += f", TTFT: {ttft:.2f}s"
+                            details += f", {tokens} tokens"
+                            if reasoning_tokens > 0:
+                                details += f" ({reasoning_tokens} reasoning)"
+
                             job_manager.add_log(
-                                f"[Q{question.id}] {question.id} - Generated ({result.metrics.get('latency', 0):.1f}s, {result.metrics.get('completion_tokens', 0)} tokens)",
+                                f"[{questions_completed}/{questions_total}] ✓ {question.id} - Generated ({details})",
                                 level="success"
                             )
 
@@ -269,10 +294,44 @@ class AsyncBenchmarkRunner:
 
                 async def tracked_evaluate(*args, **kwargs):
                     """Track evaluation phase"""
+                    nonlocal evaluations_completed, evaluation_phase_started
+
+                    # Log phase transition on first evaluation
+                    if not evaluation_phase_started:
+                        evaluation_phase_started = True
+                        job_manager.add_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", level="info")
+                        job_manager.add_log(f"Phase: Evaluating {questions_total} responses", level="info")
+
+                    # Get question from args
+                    question = args[0] if len(args) > 0 else None
+
+                    # Log before evaluation
+                    if question:
+                        job_manager.add_log(
+                            f"[{evaluations_completed + 1}/{questions_total}] Evaluating: {question.id}",
+                            level="info"
+                        )
+
+                    # Run evaluation
                     result = await original_evaluate(*args, **kwargs)
 
+                    evaluations_completed += 1
+
                     # Update phase to evaluation
-                    tracker.update(current_phase="evaluating")
+                    tracker.update(
+                        current_phase="evaluating",
+                        questions_completed=evaluations_completed
+                    )
+
+                    # Log evaluation result
+                    if question and result:
+                        score = result.score if hasattr(result, 'score') else 'N/A'
+                        passed = result.passed if hasattr(result, 'passed') else False
+                        status_icon = "✓" if passed else "✗"
+                        job_manager.add_log(
+                            f"[{evaluations_completed}/{questions_total}] {status_icon} {question.id} - Evaluated (Score: {score})",
+                            level="success" if passed else "warning"
+                        )
 
                     # Check for cancellation
                     if self.cancel_event.is_set():
@@ -301,18 +360,36 @@ class AsyncBenchmarkRunner:
             # Monkey patch run_model method
             runner._run_model_benchmark = tracked_run_model
 
-            # Run benchmark with console capture
-            with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
-                run_id = await runner.run_benchmark(
-                    models=models,
-                    categories=categories,
-                    question_ids=question_ids,
-                    max_concurrent=max_concurrent,
-                    provider_concurrency=provider_concurrency
-                )
+            # Create a timer update task that runs every second
+            async def update_timer():
+                """Update elapsed time every second"""
+                while not self.cancel_event.is_set():
+                    await asyncio.sleep(1)
+                    tracker.update()  # Just update elapsed time
 
-            # Mark as completed
-            job_manager.complete_job(run_id)
+            # Start timer task
+            timer_task = asyncio.create_task(update_timer())
+
+            try:
+                # Run benchmark with console capture
+                with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
+                    run_id = await runner.run_benchmark(
+                        models=models,
+                        categories=categories,
+                        question_ids=question_ids,
+                        max_concurrent=max_concurrent,
+                        provider_concurrency=provider_concurrency
+                    )
+
+                # Mark as completed
+                job_manager.complete_job(run_id)
+            finally:
+                # Cancel timer task
+                timer_task.cancel()
+                try:
+                    await timer_task
+                except asyncio.CancelledError:
+                    pass
 
         except Exception as e:
             error_msg = str(e)
