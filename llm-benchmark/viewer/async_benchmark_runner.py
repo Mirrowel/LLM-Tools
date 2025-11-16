@@ -243,16 +243,34 @@ class AsyncBenchmarkRunner:
                     """Track question completion during generation"""
                     nonlocal questions_completed
 
-                    # Log BEFORE generation starts
+                    # Get question before entering semaphore
                     question = args[2] if len(args) > 2 else None
-                    if question:
-                        job_manager.add_log(
-                            f"[{questions_completed + 1}/{questions_total}] Starting: {question.id}",
-                            level="info"
-                        )
 
-                    # Run generation
-                    result = await original_generate(*args, **kwargs)
+                    # We need to wrap the INNER call to log after semaphore acquisition
+                    semaphore = args[0] if len(args) > 0 else None
+
+                    # Intercept to log after semaphore is acquired
+                    if semaphore and question:
+                        # Manually acquire semaphore first
+                        async with semaphore:
+                            # Now we're inside the semaphore - log it
+                            job_manager.add_log(
+                                f"⟳ Starting: {question.id}",
+                                level="info"
+                            )
+
+                            # Call the actual generation (without semaphore since we already have it)
+                            # We need to call the inner method directly
+                            model = args[1] if len(args) > 1 else None
+                            progress = args[3] if len(args) > 3 else None
+                            task_id = args[4] if len(args) > 4 else None
+
+                            result = await runner._generate_response_with_retry(model, question)
+                            if progress and task_id is not None:
+                                progress.update(task_id, advance=1)
+                    else:
+                        # Fallback to original if we can't intercept properly
+                        result = await original_generate(*args, **kwargs)
 
                     questions_completed += 1
                     tracker.update(
@@ -296,24 +314,36 @@ class AsyncBenchmarkRunner:
                     """Track evaluation phase"""
                     nonlocal evaluations_completed, evaluation_phase_started
 
-                    # Log phase transition on first evaluation
-                    if not evaluation_phase_started:
-                        evaluation_phase_started = True
-                        job_manager.add_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", level="info")
-                        job_manager.add_log(f"Phase: Evaluating {questions_total} responses", level="info")
+                    # Get parameters
+                    semaphore = args[0] if len(args) > 0 else None
+                    question = args[1] if len(args) > 1 else None
+                    response = args[2] if len(args) > 2 else None
+                    progress = args[3] if len(args) > 3 else None
+                    task_id = args[4] if len(args) > 4 else None
 
-                    # Get question from args
-                    question = args[0] if len(args) > 0 else None
+                    # Intercept to log after semaphore is acquired
+                    if semaphore and question:
+                        # Manually acquire semaphore first
+                        async with semaphore:
+                            # Log phase transition on first evaluation
+                            if not evaluation_phase_started:
+                                evaluation_phase_started = True
+                                job_manager.add_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", level="info")
+                                job_manager.add_log(f"Phase: Evaluating {questions_total} responses", level="info")
 
-                    # Log before evaluation
-                    if question:
-                        job_manager.add_log(
-                            f"[{evaluations_completed + 1}/{questions_total}] Evaluating: {question.id}",
-                            level="info"
-                        )
+                            # Now we're inside the semaphore - log it
+                            job_manager.add_log(
+                                f"⟳ Evaluating: {question.id}",
+                                level="info"
+                            )
 
-                    # Run evaluation
-                    result = await original_evaluate(*args, **kwargs)
+                            # Call the actual evaluation (without semaphore since we already have it)
+                            result = await runner._evaluate_response(question, response)
+                            if progress and task_id is not None:
+                                progress.update(task_id, advance=1)
+                    else:
+                        # Fallback to original if we can't intercept properly
+                        result = await original_evaluate(*args, **kwargs)
 
                     evaluations_completed += 1
 

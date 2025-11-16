@@ -1583,7 +1583,9 @@ createApp({
 
                 this.showToast('Benchmark stop requested', 'warning');
 
-                // Continue polling to see cancellation status
+                // Immediately poll to get updated status
+                await this.pollBenchmarkStatus();
+
             } catch (error) {
                 console.error('Error stopping benchmark:', error);
                 this.showToast(error.message, 'error');
@@ -1639,10 +1641,10 @@ createApp({
             // Stop any existing polling
             this.stopBenchmarkPolling();
 
-            // Poll every 2 seconds
+            // Poll every 500ms for responsive UI
             this.benchmarkPolling = setInterval(() => {
                 this.pollBenchmarkStatus();
-            }, 2000);
+            }, 500);
         },
 
         stopBenchmarkPolling() {
