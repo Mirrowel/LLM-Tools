@@ -142,7 +142,7 @@ class ComparativeJudgeEvaluator:
         Anonymize and shuffle responses to prevent model name bias.
 
         Returns:
-            List of dicts with: {label, model_name, response_text, reasoning}
+            List of dicts with: {label, model_name, response_text, reasoning, instance_id}
         """
         # Create anonymized entries
         anonymized = []
@@ -151,7 +151,8 @@ class ComparativeJudgeEvaluator:
                 'label': None,  # Will be assigned after shuffle
                 'model_name': model_name,
                 'response_text': response.response_text,
-                'reasoning': response.reasoning_content
+                'reasoning': response.reasoning_content,
+                'instance_id': response.instance_id  # Track which instance was evaluated
             })
 
         # Shuffle to remove ordering bias

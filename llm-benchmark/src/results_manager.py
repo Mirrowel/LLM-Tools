@@ -62,175 +62,173 @@ class ResultsManager:
             with open(metadata_path, 'w', encoding='utf-8') as f:
                 json.dump(self.current_run.model_dump(), f, indent=2)
 
-    def save_response(self, response: ModelResponse, version: Optional[str] = None):
+    def save_response(self, response: ModelResponse, set_as_current: bool = True):
         """
-        Save a model response with versioning support.
+        Save a model response with instance-based storage.
 
         Args:
-            response: The ModelResponse to save
-            version: Optional version identifier. If None, uses timestamp
+            response: The ModelResponse to save (must have instance_id set)
+            set_as_current: If True, sets this instance as current (default: True)
         """
         if not self.current_run_dir:
             raise RuntimeError("No active run. Call create_run() first.")
+
+        # Verify instance_id is set
+        if not hasattr(response, 'instance_id') or not response.instance_id:
+            raise ValueError("Response must have instance_id set")
 
         # Create model directory if it doesn't exist
         model_dir = self.current_run_dir / "responses" / self._sanitize_name(response.model_name)
         model_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create question directory for versioned responses
+        # Create question directory for instances
         question_dir = model_dir / response.question_id
         question_dir.mkdir(exist_ok=True)
 
-        # Generate version if not provided
-        if version is None:
-            version = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-
-        # Save versioned response
-        response_path = question_dir / f"v{version}.json"
+        # Save instance response
+        instance_filename = f"{self._sanitize_instance_id(response.instance_id)}.json"
+        response_path = question_dir / instance_filename
         response_data = response.model_dump()
-        response_data['version'] = version
-        response_data['created_at'] = datetime.now().isoformat()
 
         with open(response_path, 'w', encoding='utf-8') as f:
             json.dump(response_data, f, indent=2, ensure_ascii=False)
 
-        # Update latest.json pointer
-        latest_path = question_dir / "latest.json"
-        with open(latest_path, 'w', encoding='utf-8') as f:
-            json.dump({'version': version, 'file': f"v{version}.json"}, f, indent=2)
+        # Update current.json pointer if requested
+        if set_as_current:
+            current_path = question_dir / "current.json"
+            with open(current_path, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'instance_id': response.instance_id,
+                    'last_updated': datetime.utcnow().isoformat()
+                }, f, indent=2)
 
     def save_evaluation(self, evaluation: Evaluation):
-        """Save an evaluation result. Supports multiple evaluation types per question."""
+        """
+        Save an evaluation result for a specific instance.
+        Supports multiple evaluation types per instance.
+
+        Args:
+            evaluation: The Evaluation to save (must have instance_id set)
+        """
         if not self.current_run_dir:
             raise RuntimeError("No active run. Call create_run() first.")
 
-        # Create model directory if it doesn't exist
-        model_dir = self.current_run_dir / "evaluations" / self._sanitize_name(evaluation.model_name)
-        model_dir.mkdir(parents=True, exist_ok=True)
+        # Verify instance_id is set
+        if not hasattr(evaluation, 'instance_id') or not evaluation.instance_id:
+            raise ValueError("Evaluation must have instance_id set")
 
-        # Save evaluation with type suffix to support multiple evaluations
-        eval_filename = f"{evaluation.question_id}_{evaluation.evaluation_type}.json"
-        eval_path = model_dir / eval_filename
+        # Create evaluation directory structure: evaluations/{model}/{question_id}/{instance_id}/
+        model_dir = self.current_run_dir / "evaluations" / self._sanitize_name(evaluation.model_name)
+        question_dir = model_dir / evaluation.question_id
+        instance_dir = question_dir / self._sanitize_instance_id(evaluation.instance_id)
+        instance_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save evaluation by type (e.g., llm_judge.json, code_execution.json)
+        eval_filename = f"{evaluation.evaluation_type}.json"
+        eval_path = instance_dir / eval_filename
         with open(eval_path, 'w', encoding='utf-8') as f:
             json.dump(evaluation.model_dump(), f, indent=2, ensure_ascii=False)
 
     def calculate_and_save_scores(self, questions: List):
-        """Calculate aggregate scores and save to scores.json."""
+        """
+        Calculate aggregate scores from current instances and save to scores.json.
+        Uses the 'current' instance for each question to calculate leaderboard.
+        """
         if not self.current_run_dir:
             raise RuntimeError("No active run. Call create_run() first.")
 
-        evaluations_dir = self.current_run_dir / "evaluations"
         responses_dir = self.current_run_dir / "responses"
-
         leaderboard: Dict[str, Dict] = {}
 
-        # Collect all evaluations
-        for model_dir in evaluations_dir.iterdir():
-            if model_dir.is_dir():
-                model_name = model_dir.name
+        # Iterate through all models in responses directory
+        if not responses_dir.exists():
+            return {}
 
-                evaluations = []
-                for eval_file in model_dir.glob("*.json"):
-                    with open(eval_file, 'r', encoding='utf-8') as f:
-                        eval_data = json.load(f)
-                        evaluations.append(Evaluation(**eval_data))
+        for model_dir in responses_dir.iterdir():
+            if not model_dir.is_dir():
+                continue
 
-                # Collect metrics from responses
-                metrics = []
-                model_response_dir = responses_dir / model_name
-                if model_response_dir.exists():
-                    # Handle both versioned (subdirectories) and legacy (flat) structures
-                    question_ids = set()
+            model_name = model_dir.name
+            evaluations = []
+            metrics = []
 
-                    # Check for versioned structure
-                    for question_dir in model_response_dir.iterdir():
-                        if question_dir.is_dir():
-                            question_ids.add(question_dir.name)
+            # Iterate through all question directories for this model
+            for question_dir in model_dir.iterdir():
+                if not question_dir.is_dir():
+                    continue
 
-                    # Check for legacy flat structure
-                    for response_file in model_response_dir.glob("*.json"):
-                        if '_fixed' not in response_file.stem:
-                            question_ids.add(response_file.stem)
+                question_id = question_dir.name
 
-                    # Load metrics from each response
-                    for question_id in question_ids:
-                        # Get response (uses get_response which handles both structures)
-                        try:
-                            response_path = None
-
-                            # Try versioned structure first
-                            question_dir = model_response_dir / question_id
-                            if question_dir.exists() and question_dir.is_dir():
-                                latest_path = question_dir / "latest.json"
-                                if latest_path.exists():
-                                    with open(latest_path, 'r', encoding='utf-8') as f:
-                                        latest_info = json.load(f)
-                                        response_path = question_dir / latest_info['file']
-                                else:
-                                    # Find most recent version
-                                    version_files = sorted(question_dir.glob("v*.json"), reverse=True)
-                                    if version_files:
-                                        response_path = version_files[0]
-
-                            # Fall back to legacy flat structure
-                            if not response_path:
-                                legacy_path = model_response_dir / f"{question_id}.json"
-                                if legacy_path.exists():
-                                    response_path = legacy_path
-
-                            if response_path:
-                                with open(response_path, 'r', encoding='utf-8') as f:
-                                    response_data = json.load(f)
-                                    if response_data.get('metrics'):
-                                        metrics.append(response_data['metrics'])
-                        except Exception as e:
-                            # Skip responses that can't be loaded
-                            continue
-
-                # Calculate scores
-                if evaluations:
-                    overall_score = sum(e.score for e in evaluations) / len(evaluations)
-                    passed = sum(1 for e in evaluations if e.passed)
-
-                    # Category breakdown
-                    category_scores: Dict[str, List[float]] = defaultdict(list)
-                    for evaluation in evaluations:
-                        # Find question category
-                        question = next((q for q in questions if q.id == evaluation.question_id), None)
-                        if question:
-                            category_scores[question.category].append(evaluation.score)
-
-                    category_averages = {
-                        cat: sum(scores) / len(scores)
-                        for cat, scores in category_scores.items()
-                    }
-
-                    # Calculate average metrics
-                    avg_ttft = None
-                    avg_tps = None
-                    avg_latency = None
-
-                    if metrics:
-                        ttfts = [m.get('ttft') for m in metrics if m.get('ttft') is not None]
-                        tpss = [m.get('tokens_per_second') for m in metrics if m.get('tokens_per_second') is not None]
-                        latencies = [m.get('total_latency') for m in metrics if m.get('total_latency') is not None]
-
-                        avg_ttft = sum(ttfts) / len(ttfts) if ttfts else None
-                        avg_tps = sum(tpss) / len(tpss) if tpss else None
-                        avg_latency = sum(latencies) / len(latencies) if latencies else None
-
-                    entry = LeaderboardEntry(
-                        model_name=model_name,
-                        overall_score=overall_score,
-                        category_scores=category_averages,
-                        total_questions=len(evaluations),
-                        passed_questions=passed,
-                        avg_ttft=avg_ttft,
-                        avg_tps=avg_tps,
-                        avg_latency=avg_latency
+                try:
+                    # Get current instance ID for this question
+                    current_instance_id = self.get_current_instance(
+                        self.current_run.run_id, model_name, question_id
                     )
 
-                    leaderboard[model_name] = entry.model_dump()
+                    if not current_instance_id:
+                        continue
+
+                    # Load response for metrics
+                    response = self.get_response(
+                        self.current_run.run_id, model_name, question_id
+                    )
+                    if response and response.metrics:
+                        metrics.append(response.metrics)
+
+                    # Load evaluations for this instance
+                    instance_evals = self.get_instance_evaluations(
+                        self.current_run.run_id, model_name, question_id, current_instance_id
+                    )
+                    evaluations.extend(instance_evals)
+
+                except Exception as e:
+                    # Skip questions that can't be loaded
+                    continue
+
+            # Calculate scores
+            if evaluations:
+                overall_score = sum(e.score for e in evaluations) / len(evaluations)
+                passed = sum(1 for e in evaluations if e.passed)
+
+                # Category breakdown
+                category_scores: Dict[str, List[float]] = defaultdict(list)
+                for evaluation in evaluations:
+                    # Find question category
+                    question = next((q for q in questions if q.id == evaluation.question_id), None)
+                    if question:
+                        category_scores[question.category].append(evaluation.score)
+
+                category_averages = {
+                    cat: sum(scores) / len(scores)
+                    for cat, scores in category_scores.items()
+                }
+
+                # Calculate average metrics
+                avg_ttft = None
+                avg_tps = None
+                avg_latency = None
+
+                if metrics:
+                    ttfts = [m.get('ttft') for m in metrics if m.get('ttft') is not None]
+                    tpss = [m.get('tokens_per_second') for m in metrics if m.get('tokens_per_second') is not None]
+                    latencies = [m.get('total_latency') for m in metrics if m.get('total_latency') is not None]
+
+                    avg_ttft = sum(ttfts) / len(ttfts) if ttfts else None
+                    avg_tps = sum(tpss) / len(tpss) if tpss else None
+                    avg_latency = sum(latencies) / len(latencies) if latencies else None
+
+                entry = LeaderboardEntry(
+                    model_name=model_name,
+                    overall_score=overall_score,
+                    category_scores=category_averages,
+                    total_questions=len(evaluations),
+                    passed_questions=passed,
+                    avg_ttft=avg_ttft,
+                    avg_tps=avg_tps,
+                    avg_latency=avg_latency
+                )
+
+                leaderboard[model_name] = entry.model_dump()
 
         # Sort by overall score
         sorted_leaderboard = dict(
@@ -273,16 +271,16 @@ class ResultsManager:
         runs.sort(key=lambda x: x.timestamp, reverse=True)
         return runs
 
-    def get_response(self, run_id: str, model_name: str, question_id: str, use_fixed: bool = False, version: Optional[str] = None) -> Optional[ModelResponse]:
+    def get_response(self, run_id: str, model_name: str, question_id: str, instance_id: Optional[str] = None, use_fixed: bool = False) -> Optional[ModelResponse]:
         """
-        Get a specific model response with version support.
+        Get a specific model response with instance support.
 
         Args:
             run_id: The benchmark run ID
             model_name: The model name
             question_id: The question ID
+            instance_id: Specific instance to load. If None, loads current instance.
             use_fixed: If True, try to load fixed version first (legacy)
-            version: Specific version to load. If None, loads latest.
 
         Returns:
             ModelResponse or None
@@ -290,30 +288,29 @@ class ResultsManager:
         base_path = self.results_dir / run_id / "responses" / self._sanitize_name(model_name)
         question_dir = base_path / question_id
 
-        # Check if question directory exists (new versioned structure)
+        # Check if question directory exists (instance-based structure)
         if question_dir.exists() and question_dir.is_dir():
-            if version:
-                # Load specific version
-                version_path = question_dir / f"v{version}.json"
-                if not version_path.exists():
+            if instance_id:
+                # Load specific instance
+                instance_path = question_dir / f"{self._sanitize_instance_id(instance_id)}.json"
+                if not instance_path.exists():
                     return None
             else:
-                # Load latest version
-                latest_path = question_dir / "latest.json"
-                if latest_path.exists():
-                    with open(latest_path, 'r', encoding='utf-8') as f:
-                        latest_info = json.load(f)
-                        version_path = question_dir / latest_info['file']
-                else:
-                    # If no latest.json, find the most recent version
-                    version_files = sorted(question_dir.glob("v*.json"), reverse=True)
-                    if not version_files:
-                        return None
-                    version_path = version_files[0]
+                # Load current instance
+                current_instance_id = self.get_current_instance(run_id, model_name, question_id)
+                if not current_instance_id:
+                    return None
+                instance_path = question_dir / f"{self._sanitize_instance_id(current_instance_id)}.json"
+                if not instance_path.exists():
+                    return None
 
-            with open(version_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                return ModelResponse(**data)
+            try:
+                with open(instance_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    return ModelResponse(**data)
+            except Exception:
+                # If instance file doesn't have required fields, skip
+                pass
 
         # Legacy: Try fixed version first if requested
         if use_fixed:
@@ -321,16 +318,22 @@ class ResultsManager:
             if fixed_path.exists():
                 with open(fixed_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
+                    # Add instance fields for legacy data
+                    if 'instance_id' not in data:
+                        data['instance_id'] = 'legacy-fixed'
                     return ModelResponse(**data)
 
         # Legacy: Fall back to original flat structure
         response_path = base_path / f"{question_id}.json"
-        if not response_path.exists():
-            return None
+        if response_path.exists():
+            with open(response_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # Add instance fields for legacy data
+                if 'instance_id' not in data:
+                    data['instance_id'] = 'legacy'
+                return ModelResponse(**data)
 
-        with open(response_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            return ModelResponse(**data)
+        return None
 
     def has_fixed_response(self, run_id: str, model_name: str, question_id: str) -> bool:
         """Check if a fixed response exists."""
@@ -595,6 +598,80 @@ class ResultsManager:
 
         return sorted_leaderboard
 
+    def get_all_runs_leaderboard(self) -> List[Dict]:
+        """
+        Get expanded leaderboard showing all runs as separate entries.
+        Used for 'show all runs' mode.
+
+        Returns:
+            List of expanded leaderboard entries with run identifiers
+        """
+        from src.schemas import ExpandedLeaderboardEntry
+
+        preferences = self.get_leaderboard_preferences()
+        all_runs = self.get_all_runs()
+        expanded_entries = []
+
+        # Group runs by model and date for sequential numbering
+        model_date_runs: Dict[str, Dict[str, List]] = defaultdict(lambda: defaultdict(list))
+        for run in all_runs:
+            date_str = run.timestamp[:8]  # YYYYMMDD
+            model_date_runs[run.model][date_str].append(run)
+
+        # Process each run
+        for run in all_runs:
+            leaderboard = self.get_leaderboard(run.run_id)
+            if not leaderboard:
+                continue
+
+            # Get the model from this run
+            model_name = run.model
+            date_str = run.timestamp[:8]  # YYYYMMDD
+
+            # Determine run identifier for model name
+            if run.run_label:
+                # Use custom label
+                display_name = f"{model_name}-{run.run_label}"
+            else:
+                # Use date, with sequential number if multiple runs on same date
+                runs_on_date = model_date_runs[model_name][date_str]
+                if len(runs_on_date) > 1:
+                    # Find position of this run (sorted by full timestamp)
+                    sorted_runs = sorted(runs_on_date, key=lambda r: r.timestamp)
+                    position = sorted_runs.index(run) + 1
+                    display_name = f"{model_name}-{date_str}-{position}"
+                else:
+                    display_name = f"{model_name}-{date_str}"
+
+            # Get model's entry from leaderboard
+            sanitized_model_name = self._sanitize_name(model_name)
+
+            # Try both original and sanitized names
+            if model_name in leaderboard:
+                entry_data = leaderboard[model_name]
+            elif sanitized_model_name in leaderboard:
+                entry_data = leaderboard[sanitized_model_name]
+            else:
+                continue
+
+            # Create expanded entry
+            expanded_entry = ExpandedLeaderboardEntry(
+                model_name=display_name,
+                original_model_name=model_name,
+                run_id=run.run_id,
+                run_date=date_str,
+                run_label=run.run_label,
+                is_preferred=(model_name in preferences and preferences[model_name] == run.run_id),
+                **entry_data
+            )
+
+            expanded_entries.append(expanded_entry.model_dump())
+
+        # Sort by overall score descending
+        expanded_entries.sort(key=lambda x: x['overall_score'], reverse=True)
+
+        return expanded_entries
+
     def list_response_versions(self, run_id: str, model_name: str, question_id: str) -> List[Dict]:
         """
         List all versions of a response for a specific question.
@@ -644,7 +721,237 @@ class ResultsManager:
 
         return versions
 
+    def get_current_instance(self, run_id: str, model_name: str, question_id: str) -> Optional[str]:
+        """
+        Get the current instance ID for a question.
+        Falls back to latest instance if no current.json exists.
+
+        Returns:
+            instance_id or None
+        """
+        base_path = self.results_dir / run_id / "responses" / self._sanitize_name(model_name)
+        question_dir = base_path / question_id
+
+        if not question_dir.exists() or not question_dir.is_dir():
+            return None
+
+        # Check for current.json
+        current_path = question_dir / "current.json"
+        if current_path.exists():
+            with open(current_path, 'r', encoding='utf-8') as f:
+                current_info = json.load(f)
+                return current_info.get('instance_id')
+
+        # Fallback: Find latest instance by filename (sorted descending)
+        instance_files = sorted(question_dir.glob("*.json"), reverse=True)
+        for instance_file in instance_files:
+            if instance_file.name in ['current.json', 'latest.json']:
+                continue
+            # Read the file to get instance_id
+            try:
+                with open(instance_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if 'instance_id' in data:
+                        return data['instance_id']
+            except:
+                continue
+
+        return None
+
+    def set_current_instance(self, run_id: str, model_name: str, question_id: str, instance_id: str):
+        """
+        Set the current instance for a question.
+        Updates current.json pointer.
+
+        Args:
+            run_id: The benchmark run ID
+            model_name: The model name
+            question_id: The question ID
+            instance_id: The instance ID to set as current
+        """
+        base_path = self.results_dir / run_id / "responses" / self._sanitize_name(model_name)
+        question_dir = base_path / question_id
+
+        if not question_dir.exists():
+            raise ValueError(f"Question directory does not exist: {question_dir}")
+
+        # Verify instance exists
+        instance_file = question_dir / f"{self._sanitize_instance_id(instance_id)}.json"
+        if not instance_file.exists():
+            raise ValueError(f"Instance does not exist: {instance_id}")
+
+        # Update current.json
+        current_path = question_dir / "current.json"
+        with open(current_path, 'w', encoding='utf-8') as f:
+            json.dump({
+                'instance_id': instance_id,
+                'last_updated': datetime.utcnow().isoformat()
+            }, f, indent=2)
+
+    def list_instances(self, run_id: str, model_name: str, question_id: str) -> List[Dict]:
+        """
+        List all instances of a response for a specific question.
+
+        Returns:
+            List of instance info dicts with keys: instance_id, instance_type, timestamp,
+            is_current, has_error, evaluations, metrics
+        """
+        base_path = self.results_dir / run_id / "responses" / self._sanitize_name(model_name)
+        question_dir = base_path / question_id
+
+        if not question_dir.exists() or not question_dir.is_dir():
+            return []
+
+        # Get current instance
+        current_instance_id = self.get_current_instance(run_id, model_name, question_id)
+
+        # Find all instance files
+        instances = []
+        for instance_file in question_dir.glob("*.json"):
+            if instance_file.name in ['current.json', 'latest.json']:
+                continue
+
+            try:
+                with open(instance_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+
+                    # Skip if no instance_id (legacy files)
+                    if 'instance_id' not in data:
+                        continue
+
+                    instance_id = data['instance_id']
+
+                    # Get evaluations for this instance
+                    evaluations = {}
+                    eval_dir = self.results_dir / run_id / "evaluations" / self._sanitize_name(model_name) / question_id / self._sanitize_instance_id(instance_id)
+                    if eval_dir.exists():
+                        for eval_file in eval_dir.glob("*.json"):
+                            eval_type = eval_file.stem
+                            with open(eval_file, 'r', encoding='utf-8') as ef:
+                                eval_data = json.load(ef)
+                                evaluations[eval_type] = {
+                                    'score': eval_data.get('score'),
+                                    'passed': eval_data.get('passed'),
+                                    'timestamp': eval_data.get('timestamp')
+                                }
+
+                    instances.append({
+                        'instance_id': instance_id,
+                        'instance_type': data.get('instance_type', 'original'),
+                        'timestamp': data.get('timestamp'),
+                        'is_current': instance_id == current_instance_id,
+                        'has_error': data.get('error') is not None,
+                        'error': data.get('error'),
+                        'evaluations': evaluations,
+                        'metrics': data.get('metrics', {})
+                    })
+            except Exception as e:
+                # Skip files that can't be loaded
+                continue
+
+        # Sort by instance_id (timestamp) descending
+        instances.sort(key=lambda x: x['instance_id'], reverse=True)
+        return instances
+
+    def delete_instance(self, run_id: str, model_name: str, question_id: str, instance_id: str):
+        """
+        Delete a response instance and all its evaluations.
+        Cannot delete the current instance.
+
+        Args:
+            run_id: The benchmark run ID
+            model_name: The model name
+            question_id: The question ID
+            instance_id: The instance ID to delete
+        """
+        # Check if this is the current instance
+        current_instance_id = self.get_current_instance(run_id, model_name, question_id)
+        if instance_id == current_instance_id:
+            raise ValueError("Cannot delete the current instance. Set a different instance as current first.")
+
+        # Delete response instance file
+        base_path = self.results_dir / run_id / "responses" / self._sanitize_name(model_name)
+        question_dir = base_path / question_id
+        instance_file = question_dir / f"{self._sanitize_instance_id(instance_id)}.json"
+
+        if instance_file.exists():
+            instance_file.unlink()
+
+        # Delete evaluation directory for this instance
+        eval_dir = self.results_dir / run_id / "evaluations" / self._sanitize_name(model_name) / question_id / self._sanitize_instance_id(instance_id)
+        if eval_dir.exists():
+            import shutil
+            shutil.rmtree(eval_dir)
+
+    def get_instance_evaluations(self, run_id: str, model_name: str, question_id: str, instance_id: str) -> List[Evaluation]:
+        """
+        Get all evaluations for a specific instance.
+
+        Returns:
+            List of Evaluation objects
+        """
+        eval_dir = self.results_dir / run_id / "evaluations" / self._sanitize_name(model_name) / question_id / self._sanitize_instance_id(instance_id)
+
+        if not eval_dir.exists():
+            return []
+
+        evaluations = []
+        for eval_file in eval_dir.glob("*.json"):
+            with open(eval_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                evaluations.append(Evaluation(**data))
+
+        return evaluations
+
+    def set_run_label(self, run_id: str, label: str):
+        """
+        Set a custom label for a run.
+        Updates the metadata.json file.
+
+        Args:
+            run_id: The benchmark run ID
+            label: Custom label for this run
+        """
+        run_dir = self.results_dir / run_id
+        metadata_path = run_dir / "metadata.json"
+
+        if not metadata_path.exists():
+            raise ValueError(f"Run not found: {run_id}")
+
+        # Load, update, and save metadata
+        with open(metadata_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        data['run_label'] = label
+
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+
+    def get_run_label(self, run_id: str) -> Optional[str]:
+        """
+        Get the custom label for a run, if any.
+
+        Args:
+            run_id: The benchmark run ID
+
+        Returns:
+            Label string or None
+        """
+        run = self.get_run(run_id)
+        return run.run_label if run else None
+
     @staticmethod
     def _sanitize_name(name: str) -> str:
         """Sanitize model name for use in file paths."""
         return name.replace('/', '_').replace('\\', '_').replace(':', '_')
+
+    @staticmethod
+    def _sanitize_instance_id(instance_id: str) -> str:
+        """Sanitize instance_id (ISO timestamp) for use in filenames."""
+        # Convert 2025-01-15T14:30:22.123456 → 20250115T143022_123456
+        return instance_id.replace('-', '').replace(':', '').replace('.', '_')
+
+    @staticmethod
+    def _generate_instance_id() -> str:
+        """Generate a new instance ID (ISO timestamp with microseconds)."""
+        return datetime.utcnow().isoformat(timespec='microseconds')

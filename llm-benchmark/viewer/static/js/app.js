@@ -25,9 +25,21 @@ createApp({
 
             // Individual Evaluation Data
             leaderboard: [],
+            allRunsLeaderboard: [],
+            showAllRunsMode: false,
             modelDisplayNames: {},
             runs: [],
             questions: [],
+
+            // Instance Management
+            instancesList: [],
+            selectedInstance: null,
+            showInstanceModal: false,
+
+            // Run Labeling
+            showRunLabelModal: false,
+            selectedRunForLabel: null,
+            runLabelInput: '',
 
             // Comparative Judge Data
             comparativeJobs: [],
@@ -35,6 +47,7 @@ createApp({
             comparativeLoading: false,
             showStartJobModal: false,
             selectedRunsForComparison: [],
+            comparativeJudgeMode: 'normal', // 'normal' or 'show_all'
 
             // Human Judge Data
             humanJudgeSelectedRun: null,
@@ -355,6 +368,148 @@ createApp({
             }
         },
 
+        async loadAllRunsLeaderboard() {
+            try {
+                const response = await fetch('/api/leaderboard/all-runs');
+                const data = await response.json();
+                this.allRunsLeaderboard = data.leaderboard || [];
+            } catch (error) {
+                console.error('Error loading all runs leaderboard:', error);
+                this.allRunsLeaderboard = [];
+            }
+        },
+
+        async toggleShowAllRunsMode() {
+            this.showAllRunsMode = !this.showAllRunsMode;
+            if (this.showAllRunsMode) {
+                await this.loadAllRunsLeaderboard();
+            }
+        },
+
+        async openRunLabelModal(run) {
+            this.selectedRunForLabel = run;
+            // Load existing label
+            try {
+                const response = await fetch(`/api/runs/${run.run_id}/label`);
+                const data = await response.json();
+                this.runLabelInput = data.label || '';
+            } catch (error) {
+                this.runLabelInput = '';
+            }
+            this.showRunLabelModal = true;
+        },
+
+        async saveRunLabel() {
+            if (!this.selectedRunForLabel) return;
+
+            try {
+                const response = await fetch(`/api/runs/${this.selectedRunForLabel.run_id}/label`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label: this.runLabelInput })
+                });
+
+                if (response.ok) {
+                    this.showToast('Run label saved successfully', 'success');
+                    this.showRunLabelModal = false;
+                    await this.loadRuns();
+                    await this.loadLeaderboard();
+                    if (this.showAllRunsMode) {
+                        await this.loadAllRunsLeaderboard();
+                    }
+                } else {
+                    throw new Error('Failed to save run label');
+                }
+            } catch (error) {
+                console.error('Error saving run label:', error);
+                this.showToast('Failed to save run label', 'error');
+            }
+        },
+
+        async loadInstances(runId, modelName, questionId) {
+            try {
+                const response = await fetch(`/api/runs/${runId}/models/${encodeURIComponent(modelName)}/questions/${questionId}/instances`);
+                const data = await response.json();
+                this.instancesList = data.instances || [];
+            } catch (error) {
+                console.error('Error loading instances:', error);
+                this.instancesList = [];
+            }
+        },
+
+        async setCurrentInstance(runId, modelName, questionId, instanceId) {
+            try {
+                const response = await fetch(`/api/runs/${runId}/models/${encodeURIComponent(modelName)}/questions/${questionId}/current`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ instance_id: instanceId })
+                });
+
+                if (response.ok) {
+                    this.showToast('Instance set as current', 'success');
+                    await this.loadInstances(runId, modelName, questionId);
+                    await this.loadLeaderboard();
+                } else {
+                    throw new Error('Failed to set current instance');
+                }
+            } catch (error) {
+                console.error('Error setting current instance:', error);
+                this.showToast('Failed to set current instance', 'error');
+            }
+        },
+
+        async deleteInstance(runId, modelName, questionId, instanceId) {
+            if (!confirm('Are you sure you want to delete this instance? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/runs/${runId}/models/${encodeURIComponent(modelName)}/questions/${questionId}/instances/${encodeURIComponent(instanceId)}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    this.showToast('Instance deleted successfully', 'success');
+                    await this.loadInstances(runId, modelName, questionId);
+                } else {
+                    const data = await response.json();
+                    throw new Error(data.detail || 'Failed to delete instance');
+                }
+            } catch (error) {
+                console.error('Error deleting instance:', error);
+                this.showToast(error.message || 'Failed to delete instance', 'error');
+            }
+        },
+
+        async regenerateResponse(runId, modelName, questionId, confirmReplace = false) {
+            try {
+                const response = await fetch(`/api/runs/${runId}/models/${encodeURIComponent(modelName)}/questions/${questionId}/regenerate?confirm_replace=${confirmReplace}`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.requires_confirmation) {
+                    if (confirm('Current response is successful. Regenerating will replace it. Continue?')) {
+                        return await this.regenerateResponse(runId, modelName, questionId, true);
+                    }
+                    return;
+                }
+
+                if (response.ok && data.success) {
+                    this.showToast('Response regenerated successfully', 'success');
+                    await this.loadInstances(runId, modelName, questionId);
+                    // Reload the current response display if viewing
+                    return data;
+                } else {
+                    throw new Error(data.message || 'Failed to regenerate response');
+                }
+            } catch (error) {
+                console.error('Error regenerating response:', error);
+                this.showToast(error.message || 'Failed to regenerate response', 'error');
+            }
+        },
+
         async loadModelDisplayNames() {
             try {
                 const response = await fetch('/api/model-display-names');
@@ -486,7 +641,8 @@ createApp({
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        run_ids: this.selectedRunsForComparison
+                        run_ids: this.selectedRunsForComparison,
+                        mode: this.comparativeJudgeMode
                     })
                 });
 

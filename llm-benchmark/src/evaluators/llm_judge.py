@@ -72,13 +72,15 @@ class LLMJudgeEvaluator:
         if response.error:
             return Evaluation(
                 question_id=question.id,
-                model_name=response.model_name,                score=0.0,
+                model_name=response.model_name,
+                score=0.0,
                 passed=False,
                 evaluation_type="llm_judge",
                 evaluator_model=self.judge_model,
                 reasoning=f"Response failed with error: {response.error}",
                 details={"error": response.error},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
+                instance_id=response.instance_id
             )
 
         # Build the evaluation prompt
@@ -210,20 +212,23 @@ class LLMJudgeEvaluator:
                     "full_judge_response": judge_text,
                     "was_truncated": was_truncated
                 },
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
+                instance_id=response.instance_id
             )
 
         except Exception as e:
             # If evaluation fails, return a default failure
             return Evaluation(
                 question_id=question.id,
-                model_name=response.model_name,                score=0.0,
+                model_name=response.model_name,
+                score=0.0,
                 passed=False,
                 evaluation_type="llm_judge",
                 evaluator_model=self.judge_model,
                 reasoning=f"Evaluation failed: {str(e)}",
                 details={"evaluation_error": str(e)},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
+                instance_id=response.instance_id
             )
 
     def _build_evaluation_prompt(

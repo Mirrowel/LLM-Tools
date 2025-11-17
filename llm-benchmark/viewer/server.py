@@ -253,6 +253,55 @@ async def get_run(run_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class RunLabelRequest(BaseModel):
+    """Request body for setting run label."""
+    label: str
+
+
+@app.put("/api/runs/{run_id}/label")
+async def set_run_label(run_id: str, request: RunLabelRequest):
+    """Set a custom label for a run."""
+    try:
+        # Verify run exists
+        run = results_manager.get_run(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+
+        # Set the label
+        results_manager.set_run_label(run_id, request.label)
+
+        return {
+            "success": True,
+            "run_id": run_id,
+            "label": request.label
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/runs/{run_id}/label")
+async def get_run_label(run_id: str):
+    """Get the label for a run."""
+    try:
+        # Verify run exists
+        run = results_manager.get_run(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+
+        label = results_manager.get_run_label(run_id)
+
+        return {
+            "run_id": run_id,
+            "label": label
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/runs/{run_id}/bulk-data")
 async def get_run_bulk_data(run_id: str, model_name: str):
     """
@@ -601,12 +650,13 @@ async def list_response_versions(run_id: str, model_name: str, question_id: str)
 
 
 @app.post("/api/runs/{run_id}/models/{model_name:path}/questions/{question_id}/regenerate")
-async def regenerate_response(run_id: str, model_name: str, question_id: str):
-    """Regenerate response and evaluation for a question (creates new version)."""
+async def regenerate_response(run_id: str, model_name: str, question_id: str, confirm_replace: bool = False):
+    """Regenerate response and evaluation for a question using new regeneration service."""
     try:
-        from src.runner import BenchmarkRunner
+        from src.services.regeneration import regenerate_response as regenerate_service
         from lib.rotator_library.client import RotatingClient
-        from src.config_loader import ConfigLoader
+        from src.evaluators import LLMJudgeEvaluator, CodeExecutor
+        from src.evaluators.tool_validator import ToolCallValidator
 
         # Get question
         question = question_loader.get_question(question_id)
@@ -618,12 +668,19 @@ async def regenerate_response(run_id: str, model_name: str, question_id: str):
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
 
-        # Load config to get model settings
-        try:
-            config = ConfigLoader(str(PROJECT_ROOT / "config.yaml"))
-        except (FileNotFoundError, ValueError):
-            # If config not found, use empty defaults
-            config = None
+        # Check current instance status
+        current_instance_id = results_manager.get_current_instance(run_id, model_name, question_id)
+        if current_instance_id:
+            current_response = results_manager.get_response(run_id, model_name, question_id)
+            has_error = current_response.error is not None if current_response else False
+
+            # If no error and user didn't confirm, require confirmation
+            if not has_error and not confirm_replace:
+                return {
+                    "success": False,
+                    "requires_confirmation": True,
+                    "message": "Current response is successful. Set confirm_replace=true to proceed with regeneration."
+                }
 
         # Collect API keys
         api_keys = defaultdict(list)
@@ -646,30 +703,26 @@ async def regenerate_response(run_id: str, model_name: str, question_id: str):
             client_kwargs["max_concurrent_requests_per_key"] = config.provider_concurrency
         client = RotatingClient(**client_kwargs)
 
-        # Initialize runner with run configuration
+        # Initialize evaluators
         judge_model = run.judge_model or "anthropic/claude-3-5-sonnet-20241022"
-        runner = BenchmarkRunner(
+        evaluators = {
+            'llm_judge': LLMJudgeEvaluator(client, judge_model),
+            'code_executor': CodeExecutor(),
+            'tool_validator': ToolCallValidator()
+        }
+
+        # Call regeneration service
+        new_response, evaluation = await regenerate_service(
+            run_id=run_id,
+            model_name=model_name,
+            question_id=question_id,
+            question=question,
             client=client,
-            judge_model=judge_model,
-            results_dir=str(results_manager.results_dir),
-            model_system_instructions=config.all_model_system_instructions if config else {},
-            model_options=config.all_model_options if config else {},
-            code_formatting_enabled=config.code_formatting_enabled if config else True,
-            code_formatting_instruction=config.code_formatting_instruction if config else None
+            results_manager=results_manager,
+            evaluators=evaluators,
+            replace_current=True,  # Always replace current
+            model_options=config.get_model_options(model_name) if config else None
         )
-
-        # Set the current run directory
-        runner.results_manager.current_run_dir = results_manager.results_dir / run_id
-
-        # Generate new response
-        new_response = await runner._generate_response(model_name, question)
-
-        # Save new versioned response
-        results_manager.current_run_dir = results_manager.results_dir / run_id
-        results_manager.save_response(new_response)  # Will auto-generate new version
-
-        # Evaluate new response
-        evaluation = await runner._evaluate_response(question, new_response)
 
         return {
             "success": True,
@@ -678,10 +731,101 @@ async def regenerate_response(run_id: str, model_name: str, question_id: str):
             "evaluation": evaluation.model_dump() if evaluation else None
         }
 
+    except ValueError as e:
+        # Max instances reached or other validation errors
+        raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Regeneration failed: {str(e)}")
+
+
+# ============================================================================
+# Instance Management API Endpoints
+# ============================================================================
+
+@app.get("/api/runs/{run_id}/models/{model_name:path}/questions/{question_id}/instances")
+async def list_instances(run_id: str, model_name: str, question_id: str):
+    """List all instances for a specific question."""
+    try:
+        instances = results_manager.list_instances(run_id, model_name, question_id)
+        return {"instances": instances}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/runs/{run_id}/models/{model_name:path}/questions/{question_id}/instances/{instance_id}")
+async def get_instance(run_id: str, model_name: str, question_id: str, instance_id: str):
+    """Get a specific instance by ID."""
+    try:
+        response = results_manager.get_response(run_id, model_name, question_id, instance_id=instance_id)
+        if not response:
+            raise HTTPException(status_code=404, detail="Instance not found")
+
+        # Get evaluations for this instance
+        evaluations = results_manager.get_instance_evaluations(run_id, model_name, question_id, instance_id)
+
+        # Check if this is the current instance
+        current_instance_id = results_manager.get_current_instance(run_id, model_name, question_id)
+        is_current = (instance_id == current_instance_id)
+
+        return {
+            "instance": response.model_dump(),
+            "evaluations": evaluations,
+            "is_current": is_current
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class SetCurrentInstanceRequest(BaseModel):
+    """Request body for setting current instance."""
+    instance_id: str
+
+
+@app.put("/api/runs/{run_id}/models/{model_name:path}/questions/{question_id}/current")
+async def set_current_instance(run_id: str, model_name: str, question_id: str, request: SetCurrentInstanceRequest):
+    """Set the current instance for a question."""
+    try:
+        # Verify instance exists
+        response = results_manager.get_response(run_id, model_name, question_id, instance_id=request.instance_id)
+        if not response:
+            raise HTTPException(status_code=404, detail="Instance not found")
+
+        # Set as current
+        results_manager.set_current_instance(run_id, model_name, question_id, request.instance_id)
+
+        # Trigger leaderboard recalculation
+        results_manager.calculate_and_save_scores()
+
+        return {
+            "success": True,
+            "message": f"Instance {request.instance_id} set as current",
+            "instance_id": request.instance_id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/runs/{run_id}/models/{model_name:path}/questions/{question_id}/instances/{instance_id}")
+async def delete_instance(run_id: str, model_name: str, question_id: str, instance_id: str):
+    """Delete a specific instance (cannot delete current instance)."""
+    try:
+        results_manager.delete_instance(run_id, model_name, question_id, instance_id)
+
+        return {
+            "success": True,
+            "message": f"Instance {instance_id} deleted successfully"
+        }
+    except ValueError as e:
+        # Current instance or other validation error
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/runs/{run_id}/questions/{question_id}")
@@ -785,6 +929,16 @@ async def get_unified_leaderboard():
     """Get unified leaderboard using preferred runs per model."""
     try:
         leaderboard = results_manager.get_unified_leaderboard()
+        return {"leaderboard": leaderboard}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/leaderboard/all-runs")
+async def get_all_runs_leaderboard():
+    """Get expanded leaderboard showing all runs as separate entries."""
+    try:
+        leaderboard = results_manager.get_all_runs_leaderboard()
         return {"leaderboard": leaderboard}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1226,6 +1380,7 @@ class ComparativeJudgeRequest(BaseModel):
     """Request body for starting comparative judge job."""
     run_ids: List[str]
     question_ids: Optional[List[str]] = None  # If None, use all questions
+    mode: str = "normal"  # "normal" or "show_all"
 
 
 @app.post("/api/comparative-judge/start")
@@ -1240,8 +1395,41 @@ async def start_comparative_judge(request: ComparativeJudgeRequest):
         if not question_ids:
             question_ids = list(question_loader.questions.keys())
 
+        # Filter run_ids based on mode
+        run_ids_to_compare = request.run_ids
+
+        if request.mode == "normal":
+            # Normal mode: Use preferred runs only (one run per model)
+            # Group runs by model and select preferred run per model
+            model_to_runs = {}
+            for run_id in request.run_ids:
+                run = results_manager.get_run(run_id)
+                if run:
+                    model_name = run.model
+                    if model_name not in model_to_runs:
+                        model_to_runs[model_name] = []
+                    model_to_runs[model_name].append(run_id)
+
+            # Get preferences
+            preferences = results_manager.get_leaderboard_preferences()
+
+            # Select one run per model (preferred or latest)
+            run_ids_to_compare = []
+            for model_name, run_list in model_to_runs.items():
+                if model_name in preferences:
+                    # Use preferred run if it's in the list
+                    if preferences[model_name] in run_list:
+                        run_ids_to_compare.append(preferences[model_name])
+                    else:
+                        # Fallback to latest
+                        run_ids_to_compare.append(run_list[-1])
+                else:
+                    # Use latest run
+                    run_ids_to_compare.append(run_list[-1])
+        # else: show_all mode uses all run_ids as-is
+
         # Create job
-        job_id = job_runner.create_job(request.run_ids, question_ids)
+        job_id = job_runner.create_job(run_ids_to_compare, question_ids)
 
         # Initialize evaluator
         from collections import defaultdict

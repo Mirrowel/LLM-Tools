@@ -170,10 +170,16 @@
                 <div v-if="currentPage === 'individual'" class="space-y-6">
                     <div class="flex items-center justify-between">
                         <h2 class="text-3xl font-bold">Individual Evaluation</h2>
-                        <button @click="refreshData" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center space-x-2">
-                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                            <span>Refresh</span>
-                        </button>
+                        <div class="flex items-center space-x-3">
+                            <button @click="toggleShowAllRunsMode" :class="showAllRunsMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'" class="px-4 py-2 text-white rounded-lg flex items-center space-x-2">
+                                <i data-lucide="list" class="w-4 h-4"></i>
+                                <span>{{ showAllRunsMode ? 'Show Unified' : 'Show All Runs' }}</span>
+                            </button>
+                            <button @click="refreshData" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center space-x-2">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                <span>Refresh</span>
+                            </button>
+                        </div>
                     </div>
                     <p class="text-gray-400">Models evaluated independently without comparison</p>
 
@@ -181,12 +187,13 @@
                         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
                     </div>
 
-                    <div v-else-if="leaderboard.length === 0" class="bg-gray-800 rounded-lg p-12 text-center">
+                    <div v-else-if="!showAllRunsMode && leaderboard.length === 0" class="bg-gray-800 rounded-lg p-12 text-center">
                         <i data-lucide="inbox" class="w-16 h-16 mx-auto text-gray-600 mb-4"></i>
                         <p class="text-gray-400">No benchmark results found. Run a benchmark to see results here.</p>
                     </div>
 
-                    <div v-else class="bg-gray-800 rounded-lg overflow-hidden">
+                    <!-- Unified Leaderboard (Normal Mode) -->
+                    <div v-else-if="!showAllRunsMode" class="bg-gray-800 rounded-lg overflow-hidden">
                         <table class="w-full">
                             <thead class="bg-gray-900">
                                 <tr>
@@ -235,6 +242,64 @@
                                         <button @click="viewModelDetails(entry)"
                                                 class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-sm rounded">
                                             View Details
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- All Runs Leaderboard (Show All Mode) -->
+                    <div v-else-if="showAllRunsMode" class="bg-gray-800 rounded-lg overflow-hidden">
+                        <table class="w-full">
+                            <thead class="bg-gray-900">
+                                <tr>
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">Rank</th>
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">Model</th>
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">Run Info</th>
+                                    <th class="px-6 py-4 text-right text-sm font-semibold text-gray-300">Score</th>
+                                    <th class="px-6 py-4 text-right text-sm font-semibold text-gray-300">Passed</th>
+                                    <th class="px-6 py-4 text-right text-sm font-semibold text-gray-300">Total Cost</th>
+                                    <th class="px-6 py-4 text-right text-sm font-semibold text-gray-300">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700">
+                                <tr v-for="(entry, index) in allRunsLeaderboard" :key="entry.model_name + '_' + entry.run_id"
+                                    class="hover:bg-gray-700/50 transition">
+                                    <td class="px-6 py-4">
+                                        <span class="text-gray-400">{{ index + 1 }}</span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="font-medium">{{ getDisplayName(entry.original_model_name || entry.model_name) }}</div>
+                                        <div class="text-sm text-gray-400">{{ entry.model_name }}</div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center space-x-2">
+                                            <span v-if="entry.run_label" class="text-sm bg-blue-600 px-2 py-1 rounded">{{ entry.run_label }}</span>
+                                            <span v-else class="text-sm text-gray-400">{{ entry.run_date }}</span>
+                                            <span v-if="entry.is_preferred" class="text-yellow-400">⭐</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <span :class="getScoreColor(entry.average_score)" class="font-bold text-lg">
+                                            {{ entry.average_score.toFixed(1) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <span class="text-green-400">{{ entry.passed_count }}</span>
+                                        <span class="text-gray-500">/{{ entry.total_questions }}</span>
+                                    </td>
+                                    <td class="px-6 py-4 text-right text-sm text-gray-300">
+                                        ${{ entry.total_cost?.toFixed(4) || '0.0000' }}
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <button v-if="runs.find(r => r.run_id === entry.run_id)" @click="openRunLabelModal(runs.find(r => r.run_id === entry.run_id))"
+                                                class="px-3 py-1 bg-blue-700 hover:bg-blue-600 text-sm rounded mr-2">
+                                            Label
+                                        </button>
+                                        <button @click="viewModelDetails(entry)"
+                                                class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-sm rounded">
+                                            View
                                         </button>
                                     </td>
                                 </tr>
@@ -1507,6 +1572,27 @@
 
                 <div class="p-6">
                     <p class="text-gray-400 mb-4">Select at least 2 runs to compare:</p>
+
+                    <!-- Comparison Mode Selector -->
+                    <div class="mb-4 flex items-center space-x-4 bg-gray-700 rounded-lg p-3">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" v-model="comparativeJudgeMode" value="normal"
+                                   class="w-4 h-4 text-red-600 bg-gray-600 border-gray-500 focus:ring-red-500">
+                            <span class="ml-2 text-sm">
+                                <span class="font-medium">Normal Mode</span>
+                                <span class="text-gray-400 text-xs block">Compare one run per model (uses preferred)</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" v-model="comparativeJudgeMode" value="show_all"
+                                   class="w-4 h-4 text-red-600 bg-gray-600 border-gray-500 focus:ring-red-500">
+                            <span class="ml-2 text-sm">
+                                <span class="font-medium">Show All Mode</span>
+                                <span class="text-gray-400 text-xs block">Compare all selected runs (can include multiple from same model)</span>
+                            </span>
+                        </label>
+                    </div>
+
                     <div class="max-h-96 overflow-y-auto space-y-2">
                         <label v-for="run in runs" :key="run.run_id"
                                class="flex items-center p-3 bg-gray-700 rounded hover:bg-gray-600 cursor-pointer">
@@ -1857,6 +1943,48 @@
                         Close
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Run Label Modal -->
+    <div v-if="showRunLabelModal"
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-gray-900 rounded-lg w-full max-w-lg">
+            <div class="p-6 border-b border-gray-700">
+                <h3 class="text-xl font-bold">Set Run Label</h3>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div v-if="selectedRunForLabel">
+                    <p class="text-gray-400 mb-4">
+                        Set a custom label for run: <span class="font-mono text-blue-400">{{ selectedRunForLabel.run_id }}</span>
+                    </p>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Label</label>
+                        <input v-model="runLabelInput"
+                               type="text"
+                               placeholder="e.g., baseline, optimized, v2"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-red-500"
+                               @keyup.enter="saveRunLabel">
+                    </div>
+
+                    <p class="text-sm text-gray-500 mt-2">
+                        This label will be used in the expanded leaderboard view instead of the date.
+                    </p>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-gray-700 flex justify-end space-x-3">
+                <button @click="showRunLabelModal = false"
+                        class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">
+                    Cancel
+                </button>
+                <button @click="saveRunLabel"
+                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded">
+                    Save Label
+                </button>
             </div>
         </div>
     </div>
