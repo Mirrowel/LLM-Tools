@@ -33,12 +33,14 @@ class CodeExecutor:
         if response.error:
             return Evaluation(
                 question_id=question.id,
-                model_name=response.model_name,                score=0.0,
+                model_name=response.model_name,
+                score=0.0,
                 passed=False,
                 evaluation_type="code_execution",
                 reasoning=f"Response failed with error: {response.error}",
                 details={"error": response.error},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
+                instance_id=response.instance_id
             )
 
         # Validate response has text
@@ -51,7 +53,8 @@ class CodeExecutor:
                 evaluation_type="code_execution",
                 reasoning="Response text is empty or None",
                 details={"error": "Empty response"},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
+                instance_id=response.instance_id
             )
 
         # Check if this is a multi-file artifact first
@@ -95,7 +98,8 @@ class CodeExecutor:
                 evaluation_type="code_execution",
                 reasoning=reasoning,
                 details=error_details,
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
+                instance_id=response.instance_id
             )
 
         # Execute code based on language
@@ -109,12 +113,14 @@ class CodeExecutor:
         else:
             return Evaluation(
                 question_id=question.id,
-                model_name=response.model_name,                score=0.0,
+                model_name=response.model_name,
+                score=0.0,
                 passed=False,
                 evaluation_type="code_execution",
                 reasoning=f"Unsupported language: {language}",
                 details={"language": language},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
+                instance_id=response.instance_id
             )
 
         # Calculate score based on execution result
@@ -139,7 +145,8 @@ class CodeExecutor:
 
         return Evaluation(
             question_id=question.id,
-            model_name=response.model_name,            score=score,
+            model_name=response.model_name,
+            score=score,
             passed=passed,
             evaluation_type="code_execution",
             reasoning=reasoning,
@@ -150,7 +157,8 @@ class CodeExecutor:
                 "error": error[:1000] if error else None,
                 "code": code[:2000]  # Store code snippet
             },
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
+            instance_id=response.instance_id
         )
 
     def _extract_code(self, text: str) -> Tuple[Optional[str], Optional[str]]:
@@ -518,5 +526,6 @@ class CodeExecutor:
                 "issues": issues,
                 "score_components": score_components
             },
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
+            instance_id=response.instance_id
         )

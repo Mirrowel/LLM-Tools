@@ -5,7 +5,7 @@ Useful when models provide good code but in wrong format.
 import asyncio
 from datetime import datetime
 from typing import Optional, Dict, Any
-from lib.rotator_library.client import RotatingClient
+from src.rotator_client import RotatingClient
 from src.schemas import Question, ModelResponse
 
 

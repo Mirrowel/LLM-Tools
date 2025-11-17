@@ -24,12 +24,14 @@ class ToolCallValidator:
         if response.error:
             return Evaluation(
                 question_id=question.id,
-                model_name=response.model_name,                score=0.0,
+                model_name=response.model_name,
+                score=0.0,
                 passed=False,
                 evaluation_type="tool_calling",
                 reasoning=f"Response failed with error: {response.error}",
                 details={"error": response.error},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
+                instance_id=response.instance_id
             )
 
         # Extract expected tool calls from question metadata
@@ -40,22 +42,26 @@ class ToolCallValidator:
             if response.tool_calls:
                 return Evaluation(
                     question_id=question.id,
-                    model_name=response.model_name,                    score=100.0,
+                    model_name=response.model_name,
+                    score=100.0,
                     passed=True,
                     evaluation_type="tool_calling",
                     reasoning="Model made tool calls as expected (no specific validation criteria)",
                     details={"tool_calls": response.tool_calls},
-                    timestamp=datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat(),
+                    instance_id=response.instance_id
                 )
             else:
                 return Evaluation(
                     question_id=question.id,
-                    model_name=response.model_name,                    score=0.0,
+                    model_name=response.model_name,
+                    score=0.0,
                     passed=False,
                     evaluation_type="tool_calling",
                     reasoning="Model did not make any tool calls",
                     details={},
-                    timestamp=datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat(),
+                    instance_id=response.instance_id
                 )
 
         # Validate against expected calls
@@ -66,12 +72,14 @@ class ToolCallValidator:
 
         return Evaluation(
             question_id=question.id,
-            model_name=response.model_name,            score=score,
+            model_name=response.model_name,
+            score=score,
             passed=passed,
             evaluation_type="tool_calling",
             reasoning=reasoning,
             details=details,
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
+            instance_id=response.instance_id
         )
 
     def _validate_tool_calls(

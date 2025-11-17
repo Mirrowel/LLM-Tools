@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional, List
 from contextlib import redirect_stdout, redirect_stderr
 from datetime import datetime
 
-from lib.rotator_library.client import RotatingClient
+from src.rotator_client import RotatingClient
 from src.runner import BenchmarkRunner
 from viewer.benchmark_job_manager import get_job_manager, JobManagerLogHandler
 

@@ -39,6 +39,10 @@ class ModelResponse(BaseModel):
     metrics: Dict[str, Any] = Field(default_factory=dict)  # TTFT, TPS, latency, tokens, etc.
     timestamp: str
     error: Optional[str] = None
+    # Instance management fields
+    instance_id: str  # ISO timestamp identifying this instance
+    instance_type: Literal["original", "regenerated", "fixed"] = "original"
+    replaces: Optional[str] = None  # instance_id of replaced instance (if any)
 
 
 class Evaluation(BaseModel):
@@ -52,6 +56,7 @@ class Evaluation(BaseModel):
     reasoning: Optional[str] = None
     details: Dict[str, Any] = Field(default_factory=dict)
     timestamp: str
+    instance_id: str  # Links to specific response instance
 
 
 class BenchmarkRun(BaseModel):
@@ -63,6 +68,7 @@ class BenchmarkRun(BaseModel):
     total_questions: int
     judge_model: Optional[str] = None
     config: Dict[str, Any] = Field(default_factory=dict)
+    run_label: Optional[str] = None  # Custom label for this run
 
 
 class LeaderboardEntry(BaseModel):
@@ -83,3 +89,12 @@ class LeaderboardEntry(BaseModel):
     total_cost: Optional[float] = None
     avg_cost_per_question: Optional[float] = None
     cost_efficiency_score: Optional[float] = None
+
+
+class ExpandedLeaderboardEntry(LeaderboardEntry):
+    """Leaderboard entry for 'show all runs' mode with run identification."""
+    run_id: str
+    run_date: str  # YYYYMMDD format
+    run_label: Optional[str] = None
+    original_model_name: str  # Model name without run suffix
+    is_preferred: bool = False

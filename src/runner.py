@@ -17,7 +17,7 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from lib.rotator_library.client import RotatingClient
+from src.rotator_client import RotatingClient
 from src.question_loader import QuestionLoader
 from src.results_manager import ResultsManager
 from src.schemas import Question, ModelResponse, Evaluation
@@ -316,6 +316,8 @@ class BenchmarkRunner:
                     await asyncio.sleep(delay)
                 else:
                     # Final attempt failed, create error response
+                    from src.results_manager import ResultsManager
+                    instance_id = ResultsManager._generate_instance_id()
                     return ModelResponse(
                         question_id=question.id,
                         model_name=model,
@@ -326,13 +328,17 @@ class BenchmarkRunner:
                         metrics={},
                         timestamp=datetime.now().isoformat(),
                         error=f"All {max_retries} attempts failed. Last error: {last_error}",
+                        instance_id=instance_id,
+                        instance_type="original",
                     )
 
         # This should not be reached, but just in case
-        return (
-            response
-            if "response" in locals()
-            else ModelResponse(
+        if "response" in locals():
+            return response
+        else:
+            from src.results_manager import ResultsManager
+            instance_id = ResultsManager._generate_instance_id()
+            return ModelResponse(
                 question_id=question.id,
                 model_name=model,
                 response_text="",
@@ -342,8 +348,9 @@ class BenchmarkRunner:
                 metrics={},
                 timestamp=datetime.now().isoformat(),
                 error=f"All retries exhausted. Last error: {last_error}",
+                instance_id=instance_id,
+                instance_type="original",
             )
-        )
 
     async def _generate_response(self, model: str, question: Question, progress_callback=None, cancel_event=None) -> ModelResponse:
         """Generate a response from a model for a question.
@@ -642,6 +649,10 @@ class BenchmarkRunner:
             error = str(e)
             metrics = {}
 
+        # Generate instance ID
+        from src.results_manager import ResultsManager
+        instance_id = ResultsManager._generate_instance_id()
+
         # Create response object
         model_response = ModelResponse(
             question_id=question.id,
@@ -653,6 +664,8 @@ class BenchmarkRunner:
             metrics=metrics,
             timestamp=datetime.now().isoformat(),
             error=error,
+            instance_id=instance_id,
+            instance_type="original",
         )
 
         # Save response
@@ -740,13 +753,14 @@ class BenchmarkRunner:
                             "last_error": str(last_error),
                         },
                         timestamp=datetime.now().isoformat(),
+                        instance_id=response.instance_id,
                     )
 
         # This should not be reached, but just in case
-        return (
-            evaluation
-            if "evaluation" in locals()
-            else Evaluation(
+        if "evaluation" in locals():
+            return evaluation
+        else:
+            return Evaluation(
                 question_id=question.id,
                 model_name=response.model_name,
                 score=0.0,
@@ -756,8 +770,8 @@ class BenchmarkRunner:
                 reasoning=f"All retries exhausted. Last error: {last_error}",
                 details={"retry_exhausted": True},
                 timestamp=datetime.now().isoformat(),
+                instance_id=response.instance_id,
             )
-        )
 
     async def _evaluate_response(
         self, question: Question, response: ModelResponse
@@ -803,6 +817,7 @@ class BenchmarkRunner:
                 evaluation_type="exact_match",
                 reasoning="Exact match comparison",
                 timestamp=datetime.now().isoformat(),
+                instance_id=response.instance_id,
             )
         elif question.evaluation_type == "contains":
             # Simple contains evaluation
@@ -819,6 +834,7 @@ class BenchmarkRunner:
                 evaluation_type="contains",
                 reasoning="Contains check",
                 timestamp=datetime.now().isoformat(),
+                instance_id=response.instance_id,
             )
         else:
             # Default to LLM judge (for "llm_judge" and any other types)
