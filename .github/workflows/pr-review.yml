@@ -37,6 +37,10 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.prNumber }}
       BOT_NAMES_JSON: '["mirrobot", "mirrobot-agent", "mirrobot-agent[bot]"]'
       IGNORE_BOT_NAMES_JSON: '["ellipsis-dev"]'
+      COMMENT_FETCH_LIMIT: '40'
+      REVIEW_FETCH_LIMIT: '20'
+      REVIEW_THREAD_FETCH_LIMIT: '25'
+      THREAD_COMMENT_FETCH_LIMIT: '10'
 
     steps:
 
@@ -71,33 +75,57 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.token }}
         run: |
-          # Fetch all PR data (including headRepository for fork PRs)
-          pr_json=$(gh pr view ${{ env.PR_NUMBER }} --repo ${{ github.repository }} --json author,title,body,createdAt,state,headRefName,baseRefName,headRefOid,additions,deletions,commits,files,comments,reviews,closingIssuesReferences,headRepository)
+          # Fetch core PR metadata (comments and reviews fetched via GraphQL below)
+          pr_json=$(gh pr view ${{ env.PR_NUMBER }} --repo ${{ github.repository }} --json author,title,body,createdAt,state,headRefName,baseRefName,headRefOid,additions,deletions,commits,files,closingIssuesReferences,headRepository)
+          # Fetch timeline data to find cross-references
+          timeline_data=$(gh api "/repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/timeline")
 
-          # Supplement PR JSON with reviewThreads via GraphQL (gh pr view does not expose them directly)
           repo_owner="${GITHUB_REPOSITORY%/*}"
           repo_name="${GITHUB_REPOSITORY#*/}"
-          # Pull newest review threads/comments (GitHub caps connections at 100 nodes)
-          review_threads_query='query($owner: String!, $name: String!, $number: Int!) {
+          GRAPHQL_QUERY='query($owner:String!, $name:String!, $number:Int!, $commentLimit:Int!, $reviewLimit:Int!, $threadLimit:Int!, $threadCommentLimit:Int!) {
             repository(owner: $owner, name: $name) {
               pullRequest(number: $number) {
-                reviewThreads(last: 100) {
+                comments(last: $commentLimit) {
                   nodes {
+                    databaseId
+                    author { login }
+                    body
+                    createdAt
+                    isMinimized
+                    minimizedReason
+                  }
+                }
+                reviews(last: $reviewLimit) {
+                  nodes {
+                    databaseId
+                    author { login }
+                    body
+                    state
+                    submittedAt
+                  }
+                }
+                reviewThreads(last: $threadLimit) {
+                  nodes {
+                    id
                     isResolved
-                    path
-                    line
-                    originalLine
-                    diffSide
-                    comments(last: 100) {
+                    isOutdated
+                    comments(last: $threadCommentLimit) {
                       nodes {
+                        databaseId
                         author { login }
                         body
                         createdAt
                         path
                         line
                         originalLine
-                        diffSide
+                        diffHunk
                         isMinimized
+                        minimizedReason
+                        pullRequestReview {
+                          databaseId
+                          isMinimized
+                          minimizedReason
+                        }
                       }
                     }
                   }
@@ -106,19 +134,19 @@ jobs:
             }
           }'
 
-          if review_threads_response=$(gh api graphql -f owner="$repo_owner" -f name="$repo_name" -F number=${{ env.PR_NUMBER }} -f query="$review_threads_query" 2>/dev/null); then
-            review_threads=$(echo "$review_threads_response" | jq '.data.repository.pullRequest.reviewThreads // {"nodes": []}')
-          else
-            echo "::warning::Failed to fetch review threads via GraphQL; inline comment context may be incomplete."
-            review_threads='{"nodes": []}'
-          fi
+          discussion_data=$(gh api graphql \
+            -F owner="$repo_owner" \
+            -F name="$repo_name" \
+            -F number=${{ env.PR_NUMBER }} \
+            -F commentLimit=${{ env.COMMENT_FETCH_LIMIT }} \
+            -F reviewLimit=${{ env.REVIEW_FETCH_LIMIT }} \
+            -F threadLimit=${{ env.REVIEW_THREAD_FETCH_LIMIT }} \
+            -F threadCommentLimit=${{ env.THREAD_COMMENT_FETCH_LIMIT }} \
+            -f query="$GRAPHQL_QUERY")
 
-          pr_json=$(printf '%s\n' "$pr_json" | jq --argjson threads "$review_threads" '. + {reviewThreads: $threads}')
-          # Fetch timeline data to find cross-references
-          timeline_data=$(gh api "/repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/timeline")
-          
-          # Debug: Output pr_json for inspection
+          # Debug: Output pr_json and the discussion GraphQL payload for inspection
           echo "$pr_json" > pr_json.txt
+          echo "$discussion_data" > discussion_data.txt
           
           # For checkout step
           repo_full_name=$(echo "$pr_json" | jq -r '.headRepository.nameWithOwner // "${{ github.repository }}"')
@@ -140,26 +168,39 @@ jobs:
           # Build changed files list with correct jq interpolations for additions and deletions
           # Previous pattern had a missing backslash before the deletions interpolation, leaving a literal '((.deletions))'.
           changed_files_list=$(echo "$pr_json" | jq -r '.files[] | "- \(.path) (MODIFIED) +\((.additions))/-\((.deletions))"')
-          comments=$(echo "$pr_json" | jq -r --argjson ignored "$IGNORE_BOT_NAMES_JSON" 'if (((.comments // []) | length) > 0) then ((.comments | sort_by((.createdAt // "1980-01-01T00:00:00Z")) | reverse)[]? | select((.author.login as $login | $ignored | index($login)) | not and ((.isMinimized // false) | not)) | "- " + (.author.login // "unknown") + " at " + (.createdAt // "N/A") + ":\n" + ((.body // "") | tostring) + "\n") else "No general comments." end')
+          comments=$(echo "$discussion_data" | jq -r --argjson ignored "$IGNORE_BOT_NAMES_JSON" '
+            ((.data.repository.pullRequest.comments.nodes // [])
+              | map(select((.isMinimized != true) and (((.author.login? // "unknown") as $login | $ignored | index($login)) | not))))
+            | if length > 0 then
+                map("- " + (.author.login? // "unknown") + " at " + (.createdAt // "N/A") + ":\n" + ((.body // "") | tostring) + "\n")
+                | join("")
+              else
+                "No general comments."
+              end')
           
           # ===== ENHANCED FILTERING WITH ERROR HANDLING =====
           
           # Count totals before filtering
-          total_reviews=$(echo "$pr_json" | jq --argjson ignored "$IGNORE_BOT_NAMES_JSON" '[((.reviews | (if (type == "object" and has("nodes")) then .nodes else . end) // [])[]? | select((.author.login as $login | $ignored | index($login)) | not and ((.isMinimized // false) | not)))] | length')
-          total_review_comments=$(echo "$pr_json" | jq --argjson ignored "$IGNORE_BOT_NAMES_JSON" '[((.reviewThreads | (if (type == "object" and has("nodes")) then .nodes else . end) // [])[]? as $thread
-            | select((($thread.isResolved // false) | not))
-            | ((($thread.comments | (if (type == "object" and has("nodes")) then .nodes else . end) // [])[]?) as $comment
-            | $comment
-            | select((($comment.author.login as $login | $ignored | index($login)) | not) and ((.isMinimized // false) | not))) ] | length')
+          total_reviews=$(echo "$discussion_data" | jq --argjson ignored "$IGNORE_BOT_NAMES_JSON" '[((.data.repository.pullRequest.reviews.nodes // [])[]? | select((.author.login? // "unknown") as $login | $ignored | index($login) | not))] | length')
+            total_review_comments=$(echo "$discussion_data" | jq --argjson ignored "$IGNORE_BOT_NAMES_JSON" '((.data.repository.pullRequest.reviewThreads.nodes // [])
+              | map(select(.isResolved != true and .isOutdated != true))
+              | map(.comments.nodes // [])
+              | flatten
+              | map(select(((.author.login? // "unknown") as $login | $ignored | index($login)) | not))
+              | length) // 0')
           echo "Debug: total reviews before filtering = $total_reviews"
           echo "Debug: total review comments before filtering = $total_review_comments"
           
           # Filter reviews: exclude COMMENTED (duplicates inline comments) and DISMISSED states
           # Fallback to unfiltered if jq fails
           review_filter_err=$(mktemp 2>/dev/null || echo "/tmp/review_filter_err.log")
-          if reviews=$(echo "$pr_json" | jq -r --argjson ignored "$IGNORE_BOT_NAMES_JSON" 'if ((((.reviews | (if (type == "object" and has("nodes")) then .nodes else . end)) // []) | length) > 0) then (((.reviews | (if (type == "object" and has("nodes")) then .nodes else . end)) // [])[]? | select((.author.login as $login | $ignored | index($login)) | not and .body != null and .state != "COMMENTED" and .state != "DISMISSED" and ((.isMinimized // false) | not)) | "- \(.author.login // \"unknown\") at \(.createdAt // \"N/A\"):\n - Review body: \(.body // \"No summary comment.\")\n - State: \(.state // \"UNKNOWN\")\n") else "No formal reviews." end' 2>"$review_filter_err"); then
-            filtered_reviews=$(echo "$reviews" | grep -c "^- " || echo "0")
-            excluded_reviews=$((total_reviews - filtered_reviews))
+          if reviews=$(echo "$discussion_data" | jq -r --argjson ignored "$IGNORE_BOT_NAMES_JSON" 'if ((((.data.repository.pullRequest.reviews.nodes // []) | length) > 0)) then ((.data.repository.pullRequest.reviews.nodes // [])[]? | select((.author.login? // "unknown") as $login | $ignored | index($login) | not and .body != null and .state != "COMMENTED" and .state != "DISMISSED") | "- " + (.author.login? // "unknown") + " at " + (.submittedAt // "N/A") + ":\n - Review body: " + (.body // "No summary comment.") + "\n - State: " + (.state // "UNKNOWN") + "\n") else "No formal reviews." end' 2>"$review_filter_err"); then
+            filtered_reviews=$(echo "$reviews" | grep -c "^- " || true)
+            filtered_reviews=${filtered_reviews//[^0-9]/}
+            [ -z "$filtered_reviews" ] && filtered_reviews=0
+            total_reviews=${total_reviews//[^0-9]/}
+            [ -z "$total_reviews" ] && total_reviews=0
+            excluded_reviews=$(( total_reviews - filtered_reviews )) || excluded_reviews=0
             echo "✓ Filtered reviews: $filtered_reviews included, $excluded_reviews excluded (COMMENTED/DISMISSED)"
             if [ -s "$review_filter_err" ]; then
               echo "::debug::jq stderr (reviews) emitted output:" 
@@ -174,7 +215,7 @@ jobs:
             else
               echo "::warning::jq returned no stderr for reviews filter"
             fi
-            reviews=$(echo "$pr_json" | jq -r --argjson ignored "$IGNORE_BOT_NAMES_JSON" 'if ((((.reviews | (if (type == "object" and has("nodes")) then .nodes else . end)) // []) | length) > 0) then (((.reviews | (if (type == "object" and has("nodes")) then .nodes else . end)) // [])[]? | select((.author.login as $login | $ignored | index($login)) | not and .body != null and ((.isMinimized // false) | not)) | "- " + (.author.login // "unknown") + " at " + (.createdAt // "N/A") + ":\n - Review body: " + (.body // "No summary comment.") + "\n - State: " + (.state // "UNKNOWN") + "\n") else "No formal reviews." end')
+            reviews=$(echo "$discussion_data" | jq -r --argjson ignored "$IGNORE_BOT_NAMES_JSON" 'if ((((.data.repository.pullRequest.reviews.nodes // []) | length) > 0)) then ((.data.repository.pullRequest.reviews.nodes // [])[]? | select((.author.login? // "unknown") as $login | $ignored | index($login) | not and .body != null) | "- " + (.author.login? // "unknown") + " at " + (.submittedAt // "N/A") + ":\n - Review body: " + (.body // "No summary comment.") + "\n - State: " + (.state // "UNKNOWN") + "\n") else "No formal reviews." end')
             excluded_reviews=0
             echo "FILTER_ERROR_REVIEWS=true" >> $GITHUB_ENV
           fi
@@ -183,31 +224,31 @@ jobs:
           # Filter review comments: exclude outdated comments
           # Fallback to unfiltered if jq fails
           review_comment_filter_err=$(mktemp 2>/dev/null || echo "/tmp/review_comment_filter_err.log")
-          if review_comments=$(echo "$pr_json" | jq -r --argjson ignored "$IGNORE_BOT_NAMES_JSON" 'def norm_threads: (.reviewThreads | (if (type == "object" and has("nodes")) then .nodes else . end) // []);
-            def norm_comments($thread): (($thread.comments | (if (type == "object" and has("nodes")) then .nodes else . end) // []);
-            def active_comments:
-              [ norm_threads[]? as $thread
-                | select((($thread.isResolved // false) | not))
-                | norm_comments($thread)[]? as $comment
-                | select((($comment.author.login as $login | $ignored | index($login)) | not) and ((.isMinimized // false) | not))
-                | {
-                    author: ($comment.author.login // "unknown"),
-                    createdAt: ($comment.createdAt // "1980-01-01T00:00:00Z"),
-                    path: ((($thread.path // $comment.path // "Unknown file") | tostring)),
-                    line: ((($thread.line // $comment.line // "N/A") | tostring)),
-                    body: (($comment.body // "") | tostring)
-                  }
-              ];
-            if ((active_comments | length) > 0) then
-              active_comments
-              | sort_by(.createdAt)
-              | reverse
-              | .[]
-              | "- " + (.author) + " at " + (.createdAt // "N/A") + ":\n - Inline Comment: " + (.path) + ":" + (.line) + ":\n   " + (.body) + "\n"
-            else "No inline review comments." end' 2>"$review_comment_filter_err"); then
-            filtered_comments=$(echo "$review_comments" | grep -c "^- " || echo "0")
-            excluded_comments=$((total_review_comments - filtered_comments))
-            echo "✓ Filtered review comments: $filtered_comments included, $excluded_comments excluded (resolved/hidden/outdated)"
+          if review_comments=$(echo "$discussion_data" | jq -r --argjson ignored "$IGNORE_BOT_NAMES_JSON" '
+            ((.data.repository.pullRequest.reviewThreads.nodes // [])
+              | map(select(
+                  .isResolved != true and .isOutdated != true
+                  and (((.comments.nodes // []) | first | .isMinimized) != true)
+                  and ((((.comments.nodes // []) | first | .pullRequestReview.isMinimized) // false) != true)
+                ))
+              | map(.comments.nodes // [])
+              | flatten
+              | map(select((.isMinimized != true)
+                           and ((.pullRequestReview.isMinimized // false) != true)
+                           and (((.author.login? // "unknown") as $login | $ignored | index($login)) | not))))
+            | if length > 0 then
+                map("- " + (.author.login? // "unknown") + " at " + (.createdAt // "N/A") + " (" + (.path // "Unknown file") + ":" + ((.line // .originalLine // "N/A") | tostring) + "):\n   " + ((.body // "") | tostring) + "\n")
+                | join("")
+              else
+                "No inline review comments."
+              end' 2>"$review_comment_filter_err"); then
+            filtered_comments=$(echo "$review_comments" | grep -c "^- " || true)
+            filtered_comments=${filtered_comments//[^0-9]/}
+            [ -z "$filtered_comments" ] && filtered_comments=0
+            total_review_comments=${total_review_comments//[^0-9]/}
+            [ -z "$total_review_comments" ] && total_review_comments=0
+            excluded_comments=$(( total_review_comments - filtered_comments )) || excluded_comments=0
+            echo "✓ Filtered review comments: $filtered_comments included, $excluded_comments excluded (outdated)"
             if [ -s "$review_comment_filter_err" ]; then
               echo "::debug::jq stderr (review comments) emitted output:"
               cat "$review_comment_filter_err"
@@ -221,26 +262,23 @@ jobs:
             else
               echo "::warning::jq returned no stderr for review comment filter"
             fi
-            review_comments=$(echo "$pr_json" | jq -r --argjson ignored "$IGNORE_BOT_NAMES_JSON" 'def norm_threads: (.reviewThreads | (if (type == "object" and has("nodes")) then .nodes else . end) // []);
-              def norm_comments($thread): (($thread.comments | (if (type == "object" and has("nodes")) then .nodes else . end) // []);
-              [ norm_threads[]? as $thread
-                | select((($thread.isResolved // false) | not))
-                | norm_comments($thread)[]? as $comment
-                | select((($comment.author.login as $login | $ignored | index($login)) | not) and ((.isMinimized // false) | not))
-                | {
-                    author: ($comment.author.login // "unknown"),
-                    createdAt: ($comment.createdAt // "1980-01-01T00:00:00Z"),
-                    path: ((($thread.path // $comment.path // "Unknown file") | tostring)),
-                    line: ((($thread.line // $comment.line // "N/A") | tostring)),
-                    body: (($comment.body // "") | tostring)
-                  }
-              ]
-              | if (length > 0) then
-                  sort_by(.createdAt)
-                  | reverse
-                  | .[]
-                  | "- " + (.author) + " at " + (.createdAt // "N/A") + ":\n - Inline Comment: " + (.path) + ":" + (.line) + ":\n   " + (.body) + "\n"
-                else "No inline review comments." end')
+            review_comments=$(echo "$discussion_data" | jq -r --argjson ignored "$IGNORE_BOT_NAMES_JSON" '
+              ((.data.repository.pullRequest.reviewThreads.nodes // [])
+                | map(select(
+                    (((.comments.nodes // []) | first | .isMinimized) != true)
+                    and ((((.comments.nodes // []) | first | .pullRequestReview.isMinimized) // false) != true)
+                  ))
+                | map(.comments.nodes // [])
+                | flatten
+                | map(select((.isMinimized != true)
+                             and ((.pullRequestReview.isMinimized // false) != true)
+                             and (((.author.login? // "unknown") as $login | $ignored | index($login)) | not))))
+              | if length > 0 then
+                  map("- " + (.author.login? // "unknown") + " at " + (.createdAt // "N/A") + " (" + (.path // "Unknown file") + ":" + ((.line // .originalLine // "N/A") | tostring) + "):\n   " + ((.body // "") | tostring) + "\n")
+                  | join("")
+                else
+                  "No inline review comments."
+                end')
             excluded_comments=0
             echo "FILTER_ERROR_COMMENTS=true" >> $GITHUB_ENV
           fi
@@ -319,6 +357,8 @@ jobs:
           echo "PR_AUTHOR=$author" >> $GITHUB_ENV
           echo "BASE_BRANCH=$base_branch" >> $GITHUB_ENV
 
+      
+
       - name: Determine Review Type and Last Reviewed SHA
         id: review_type
         env:
@@ -330,15 +370,27 @@ jobs:
           # This now fetches both comments and reviews to find the last summary.
           # It checks for different author names and uses a more robust contains check.
           pr_summary_payload=$(gh pr view ${{ env.PR_NUMBER }} --repo ${{ github.repository }} --json comments,reviews)
-          last_summary_comment=$(echo "$pr_summary_payload" | jq -r --argjson bots "$BOT_NAMES_JSON" '((.comments[]?, ((.reviews | (if (type == "object" and has("nodes")) then .nodes else . end) // [])[]?)) | select((.author.login as $login | $bots | index($login)) and (.body | contains("review was generated by an AI assistant")) and ((.isMinimized // false) | not)) | .body)' | tail -n 1)
+          last_summary_comment=$(echo "$pr_summary_payload" | jq -r --argjson bots "$BOT_NAMES_JSON" '
+            [
+              (.comments[]? | {body: (.body // ""), timestamp: (.updatedAt // .createdAt // ""), author: (.author.login // "unknown")} ),
+              (.reviews[]? | {body: (.body // ""), timestamp: (.submittedAt // .updatedAt // .createdAt // ""), author: (.author.login // "unknown")} )
+            ]
+            | map(select((.author as $login | $bots | index($login)) and ((.body | test("<!-- last_reviewed_sha:[a-f0-9]{7,40} -->")) or (.body | contains("This review was generated by an AI assistant.")))))
+            | sort_by(.timestamp)
+            | last
+            | .body // ""
+          ')
 
           if [ -z "$last_summary_comment" ]; then
             echo "This is the first review."
             echo "is_first_review=true" >> $GITHUB_OUTPUT
             echo "last_reviewed_sha=" >> $GITHUB_OUTPUT
+            echo "" > last_summary_comment.txt
+            echo "" > last_review_sha.txt
           else
             echo "Follow-up review detected. Previous summary found."
             echo "is_first_review=false" >> $GITHUB_OUTPUT
+            echo "$last_summary_comment" > last_summary_comment.txt
             
             # Now, try to extract the SHA from this specific comment
             last_sha=$(echo "$last_summary_comment" | sed -n 's/.*<!-- last_reviewed_sha:\([a-f0-9]\{7,40\}\) -->.*/\1/p')
@@ -346,12 +398,16 @@ jobs:
             if [ -n "$last_sha" ]; then
               echo "Found last reviewed SHA: $last_sha"
               echo "last_reviewed_sha=$last_sha" >> $GITHUB_OUTPUT
+              echo "$last_sha" > last_review_sha.txt
             else
               # A summary exists, but no SHA was found. The AI will perform a full review.
               echo "Could not extract SHA from the last summary. The AI will perform a full review."
               echo "last_reviewed_sha=" >> $GITHUB_OUTPUT
+              echo "" > last_review_sha.txt
             fi
           fi
+
+      
 
       - name: Save secure prompt from base branch
         run: cp .github/prompts/pr-review.md /tmp/pr-review.md
@@ -369,8 +425,10 @@ jobs:
         id: first_review_diff
         run: |
           BASE_BRANCH="${{ env.BASE_BRANCH }}"
-          CURRENT_SHA=${{ env.PR_HEAD_SHA }}
+          CURRENT_SHA="${PR_HEAD_SHA}"
           DIFF_CONTENT=""
+          # Ensure dedicated diff folder exists in the workspace (hidden to avoid accidental use)
+          mkdir -p "$GITHUB_WORKSPACE/.mirrobot_files"
           
           echo "Generating full PR diff against base branch: $BASE_BRANCH"
           
@@ -394,24 +452,27 @@ jobs:
                   TRUNCATION_MSG=$'\n\n[DIFF TRUNCATED - PR is very large. Showing first 500KB only. Review scaled to high-impact areas.]'
                   DIFF_CONTENT="${DIFF_CONTENT:0:500000}${TRUNCATION_MSG}"
                 fi
+                # Write diff directly into the repository workspace in the dedicated folder
+                echo "$DIFF_CONTENT" > "$GITHUB_WORKSPACE/.mirrobot_files/first_review_diff.txt"
               else
                 echo "::warning::Could not generate diff. Using changed files list only."
                 DIFF_CONTENT="(Diff generation failed. Please refer to the changed files list above.)"
+                # Write fallback diff directly into the workspace folder
+                echo "$DIFF_CONTENT" > "$GITHUB_WORKSPACE/.mirrobot_files/first_review_diff.txt"
               fi
             else
-              echo "::warning::Could not find merge base between $BASE_BRANCH and $CURRENT_SHA."
-              DIFF_CONTENT="(No common ancestor found. This might be a new branch or orphaned commits.)"
+            echo "::warning::Could not find merge base between $BASE_BRANCH and $CURRENT_SHA."
+            DIFF_CONTENT="(No common ancestor found. This might be a new branch or orphaned commits.)"
+            # Write fallback diff content directly into the repository workspace folder
+            echo "$DIFF_CONTENT" > "$GITHUB_WORKSPACE/.mirrobot_files/first_review_diff.txt"
             fi
           else
             echo "::warning::Could not fetch base branch $BASE_BRANCH. Using changed files list only."
             DIFF_CONTENT="(Base branch not available for diff. Please refer to the changed files list above.)"
+            # Write error-case diff directly into the repository workspace folder
+            echo "$DIFF_CONTENT" > "$GITHUB_WORKSPACE/.mirrobot_files/first_review_diff.txt"
           fi
           
-          # Use a delimiter for multiline diff content
-          DELIMITER="FIRST_REVIEW_DIFF_DELIMITER_$(openssl rand -hex 8)"
-          echo "diff_content<<$DELIMITER" >> "$GITHUB_OUTPUT"
-          echo "$DIFF_CONTENT" >> "$GITHUB_OUTPUT"
-          echo "$DELIMITER" >> "$GITHUB_OUTPUT"
         env:
           BASE_BRANCH: ${{ env.BASE_BRANCH }}
 
@@ -420,8 +481,10 @@ jobs:
         id: incremental_diff
         run: |
           LAST_SHA=${{ steps.review_type.outputs.last_reviewed_sha }}
-          CURRENT_SHA=${{ env.PR_HEAD_SHA }}
+          CURRENT_SHA="${PR_HEAD_SHA}"
           DIFF_CONTENT=""
+          # Ensure dedicated diff folder exists in the workspace (hidden to avoid accidental use)
+          mkdir -p "$GITHUB_WORKSPACE/.mirrobot_files"
           echo "Attempting to generate incremental diff from $LAST_SHA to $CURRENT_SHA"
           
           # Fetch the last reviewed commit, handle potential errors (e.g., rebased/force-pushed commit)
@@ -440,18 +503,51 @@ jobs:
                 TRUNCATION_MSG=$'\n\n[DIFF TRUNCATED - Changes are very large. Showing first 500KB only.]'
                 DIFF_CONTENT="${DIFF_CONTENT:0:500000}${TRUNCATION_MSG}"
               fi
+              # Write incremental diff directly into the repository workspace folder
+              echo "$DIFF_CONTENT" > "$GITHUB_WORKSPACE/.mirrobot_files/incremental_diff.txt"
             else
               echo "::warning::Could not generate diff between $LAST_SHA and $CURRENT_SHA. Possible rebase/force-push. AI will perform full review."
+              # Ensure an empty incremental diff file exists in the workspace folder as fallback
+              echo "" > "$GITHUB_WORKSPACE/.mirrobot_files/incremental_diff.txt"
             fi
           else
             echo "::warning::Failed to fetch last reviewed SHA: $LAST_SHA. This can happen if the commit was part of a force-push or rebase. The AI will perform a full review as a fallback."
+            # Ensure an empty incremental diff file exists in the workspace folder when last-SHA fetch fails
+            echo "" > "$GITHUB_WORKSPACE/.mirrobot_files/incremental_diff.txt"
           fi
           
-          # Use a delimiter for multiline diff content, even if it's empty
-          DELIMITER="INCREMENTAL_DIFF_DELIMITER_$(openssl rand -hex 8)"
-          echo "diff_content<<$DELIMITER" >> "$GITHUB_OUTPUT"
-          echo "$DIFF_CONTENT" >> "$GITHUB_OUTPUT"
-          echo "$DELIMITER" >> "$GITHUB_OUTPUT"
+          # Ensure workspace diff files exist even on edge cases (in the hidden folder)
+          [ -f "$GITHUB_WORKSPACE/.mirrobot_files/first_review_diff.txt" ] || touch "$GITHUB_WORKSPACE/.mirrobot_files/first_review_diff.txt"
+          [ -f "$GITHUB_WORKSPACE/.mirrobot_files/incremental_diff.txt" ] || touch "$GITHUB_WORKSPACE/.mirrobot_files/incremental_diff.txt"
+
+
+      - name: Assemble Review Prompt
+        env:
+          REVIEW_TYPE: ${{ steps.review_type.outputs.is_first_review == 'true' && 'FIRST' || 'FOLLOW-UP' }}
+          PR_AUTHOR: ${{ env.PR_AUTHOR }}
+          IS_FIRST_REVIEW: ${{ steps.review_type.outputs.is_first_review }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_HEAD_SHA: ${{ env.PR_HEAD_SHA }}
+          PULL_REQUEST_CONTEXT: ${{ env.PULL_REQUEST_CONTEXT }}
+        run: |
+          # Build DIFF_FILE_PATH pointing to the generated diff in the repository workspace
+          if [ "${{ steps.review_type.outputs.is_first_review }}" = "true" ]; then
+            DIFF_FILE_PATH="$GITHUB_WORKSPACE/.mirrobot_files/first_review_diff.txt"
+          else
+            DIFF_FILE_PATH="$GITHUB_WORKSPACE/.mirrobot_files/incremental_diff.txt"
+          fi
+          # Substitute variables, embedding PR context and diff file path; DIFF_FILE_PATH kept local to this process
+          TMP_DIR="${RUNNER_TEMP:-/tmp}"
+          VARS='${REVIEW_TYPE} ${PR_AUTHOR} ${IS_FIRST_REVIEW} ${PR_NUMBER} ${GITHUB_REPOSITORY} ${PR_HEAD_SHA} ${PULL_REQUEST_CONTEXT} ${DIFF_FILE_PATH}'
+          DIFF_FILE_PATH="$DIFF_FILE_PATH" envsubst "$VARS" < /tmp/pr-review.md > "$TMP_DIR/assembled_prompt.txt"
+          # Immediately clear large env after use
+          echo "PULL_REQUEST_CONTEXT=" >> "$GITHUB_ENV"
+          # Clear small, now-redundant flags included in the context summary
+          echo "EXCLUDED_REVIEWS=" >> "$GITHUB_ENV" || true
+          echo "EXCLUDED_COMMENTS=" >> "$GITHUB_ENV" || true
+          echo "FILTER_ERROR_REVIEWS=" >> "$GITHUB_ENV" || true
+          echo "FILTER_ERROR_COMMENTS=" >> "$GITHUB_ENV" || true
 
       - name: Review PR with OpenCode
         env:
@@ -463,17 +559,15 @@ jobs:
                 "git*": "allow",
                 "jq*": "allow"
               },
+              "external_directory": "allow",
               "webfetch": "deny"
             }
           REVIEW_TYPE: ${{ steps.review_type.outputs.is_first_review == 'true' && 'FIRST' || 'FOLLOW-UP' }}
-          INCREMENTAL_DIFF: ${{ steps.review_type.outputs.is_first_review == 'true' && steps.first_review_diff.outputs.diff_content || steps.incremental_diff.outputs.diff_content }}
-          PULL_REQUEST_CONTEXT: ${{ env.PULL_REQUEST_CONTEXT }}
           PR_AUTHOR: ${{ env.PR_AUTHOR }}
           IS_FIRST_REVIEW: ${{ steps.review_type.outputs.is_first_review }}
           PR_NUMBER: ${{ env.PR_NUMBER }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_HEAD_SHA: ${{ env.PR_HEAD_SHA }}
         run: |
-          # Only substitute the variables we intend; leave jq/bash $vars intact
-          VARS='${REVIEW_TYPE} ${INCREMENTAL_DIFF} ${PULL_REQUEST_CONTEXT} ${PR_AUTHOR} ${IS_FIRST_REVIEW} ${PR_NUMBER} ${GITHUB_REPOSITORY} ${PR_HEAD_SHA}'
-          envsubst "$VARS" < /tmp/pr-review.md | opencode run --share -
+          TMP_DIR="${RUNNER_TEMP:-/tmp}"
+          opencode run --share - < "$TMP_DIR/assembled_prompt.txt"
