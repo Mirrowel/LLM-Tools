@@ -17,7 +17,7 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from lib.rotator_library.client import RotatingClient
+from src.rotator_client import RotatingClient
 from src.question_loader import QuestionLoader
 from src.results_manager import ResultsManager
 from src.schemas import Question, ModelResponse, Evaluation

@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
-from lib.rotator_library.client import RotatingClient
+from src.rotator_client import RotatingClient
 from src.schemas import Question, ModelResponse, Evaluation
 
 

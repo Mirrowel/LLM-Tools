@@ -499,7 +499,7 @@ async def re_evaluate_response(run_id: str, model_name: str, question_id: str):
         results_manager.current_run_dir = results_manager.results_dir / run_id
 
         # Initialize evaluators
-        from lib.rotator_library.client import RotatingClient
+        from src.rotator_client import RotatingClient
 
         # Collect API keys
         api_keys = defaultdict(list)
@@ -575,7 +575,7 @@ async def fix_response_formatting(run_id: str, model_name: str, question_id: str
 
         # Initialize code fixer if needed (lazy initialization)
         if code_fixer is None:
-            from lib.rotator_library.client import RotatingClient
+            from src.rotator_client import RotatingClient
 
             # Collect API keys
             api_keys = defaultdict(list)
@@ -654,7 +654,7 @@ async def regenerate_response(run_id: str, model_name: str, question_id: str, co
     """Regenerate response and evaluation for a question using new regeneration service."""
     try:
         from src.services.regeneration import regenerate_response as regenerate_service
-        from lib.rotator_library.client import RotatingClient
+        from src.rotator_client import RotatingClient
         from src.evaluators import LLMJudgeEvaluator, CodeExecutor
         from src.evaluators.tool_validator import ToolCallValidator
 
@@ -1445,7 +1445,7 @@ async def start_comparative_judge(request: ComparativeJudgeRequest):
         if not api_keys:
             raise HTTPException(status_code=500, detail="No API keys configured")
 
-        from lib.rotator_library.client import RotatingClient
+        from src.rotator_client import RotatingClient
         client_kwargs = {"api_keys": dict(api_keys)}
         if config:
             client_kwargs["max_retries"] = config.max_retries_per_key
@@ -1610,7 +1610,7 @@ async def start_benchmark(request: BenchmarkRequest):
             raise HTTPException(status_code=500, detail="No API keys configured")
 
         # Create RotatingClient
-        from lib.rotator_library.client import RotatingClient
+        from src.rotator_client import RotatingClient
         client_kwargs = {"api_keys": dict(api_keys)}
         client_kwargs["max_retries"] = config.max_retries_per_key
         client_kwargs["global_timeout"] = config.global_timeout

@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from lib.rotator_library.client import RotatingClient
+from src.rotator_client import RotatingClient
 from src.runner import BenchmarkRunner
 from src.config_loader import ConfigLoader
 

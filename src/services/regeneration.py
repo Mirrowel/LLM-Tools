@@ -10,7 +10,7 @@ from pathlib import Path
 
 from src.schemas import ModelResponse, Evaluation, Question
 from src.results_manager import ResultsManager
-from lib.rotator_library.client import RotatingClient
+from src.rotator_client import RotatingClient
 
 
 async def regenerate_response(

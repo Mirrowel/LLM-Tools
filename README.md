@@ -38,6 +38,36 @@ That's it! You're ready to benchmark LLMs with a modern web interface.
 
 **No config file editing required** - the web interface handles everything!
 
+## 🔗 External Dependency: Rotating API Key Client
+
+This project uses an external library for API key rotation and provider retries:
+
+- Repository: https://github.com/Mirrowel/LLM-API-Key-Proxy
+- Branch: experimental `cli-oauth`
+- Package (PEP 621 name): `rotating-api-key-client`
+- Python import package: `rotator_library`
+
+How it's installed by default
+- We pin the experimental branch via VCS in `requirements.txt`:
+  - `rotating-api-key-client @ git+https://github.com/Mirrowel/LLM-API-Key-Proxy.git@cli-oauth#subdirectory=src/rotator_library`
+- On `pip install -r requirements.txt`, pip clones that branch and installs the package.
+
+Local development override (for maintainers)
+- If you keep a local copy at `lib/rotator_library/`, the code will use it automatically.
+- We ship a small shim `src/rotator_client.py` that imports the installed package if present, otherwise falls back to `lib/rotator_library`.
+- The `lib/` folder is locally ignored via `local_exclude.gitignore` so your local copy won't be committed.
+
+Optional editable installs (PowerShell)
+```powershell
+# Install directly from the experimental branch in editable mode
+pip install -e "git+https://github.com/Mirrowel/LLM-API-Key-Proxy.git@cli-oauth#egg=rotating-api-key-client&subdirectory=src/rotator_library"
+```
+
+Updating the library
+- If installed via requirements: `pip install -U -r requirements.txt`
+- Or force refresh from Git: `pip install --upgrade --force-reinstall "rotating-api-key-client @ git+https://github.com/Mirrowel/LLM-API-Key-Proxy.git@cli-oauth#subdirectory=src/rotator_library"`
+- If using a local copy under `lib/rotator_library/`, just pull latest from the repo/branch; no reinstall needed.
+
 ## 📋 Table of Contents
 
 - [Overview](#overview)
@@ -187,13 +217,14 @@ cd llm-benchmark
 ```bash
 # Install Python dependencies
 pip install -r requirements.txt
-
-# Install custom library
-pip install -e lib/rotator_library
-
-# Verify installation
-python verify_setup.py
 ```
+
+> **Note on Dependencies**: This project uses the [rotating-api-key-client](https://github.com/Mirrowel/LLM-API-Key-Proxy) library (experimental `cli-oauth` branch) for intelligent API key rotation and retry logic. The library is automatically installed via requirements.txt from the git repository.
+>
+> If you encounter installation issues, you can manually install it:
+> ```bash
+> pip install "git+https://github.com/Mirrowel/LLM-API-Key-Proxy.git@cli-oauth#subdirectory=src/rotator_library"
+> ```
 
 #### 3. Configure Environment
 ```bash
@@ -711,12 +742,12 @@ python -c "from dotenv import load_dotenv; load_dotenv(); import os; print(dict(
 
 **"rotator_library not installed" Error**
 ```bash
-# Reinstall custom library
+# Reinstall the library from GitHub
 pip uninstall rotating-api-key-client
-pip install -e lib/rotator_library
+pip install "git+https://github.com/Mirrowel/LLM-API-Key-Proxy.git@cli-oauth#subdirectory=src/rotator_library"
 
 # Verify installation
-python -c "from lib.rotator_library.client import RotatingClient; print('OK')"
+python -c "from rotator_library.client import RotatingClient; print('OK')"
 ```
 
 #### Runtime Issues
@@ -817,10 +848,25 @@ cd llm-benchmark
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-pip install -e lib/rotator_library
 
 # Install development dependencies
 pip install -r requirements-dev.txt  # if available
+```
+
+#### About the rotating-api-key-client Library
+
+This project depends on an **experimental branch** of the rotating-api-key-client library:
+- **Repository**: [LLM-API-Key-Proxy](https://github.com/Mirrowel/LLM-API-Key-Proxy)
+- **Branch**: `cli-oauth` (experimental features)
+- **Package Location**: `src/rotator_library/` subdirectory
+
+**Why this setup?**
+The library is under active development in a separate repository. Using a git dependency allows MirroBench to track the latest features without bundling/vendoring code, keeping the repository clean while maintaining access.
+
+**For library updates:**
+```bash
+# Update to latest version from the branch
+pip install --upgrade --force-reinstall "git+https://github.com/Mirrowel/LLM-API-Key-Proxy.git@cli-oauth#subdirectory=src/rotator_library"
 ```
 
 ### Contribution Areas
@@ -862,7 +908,6 @@ pip install -r requirements-dev.txt  # if available
 - **Python**: Follow PEP 8, use type hints
 - **JavaScript**: Use ES6+, Vue.js 3 composition API
 - **Documentation**: Update relevant docs for changes
-- **Testing**: Ensure `verify_setup.py` passes
 
 ### Question Contribution Template
 
@@ -891,6 +936,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
+- **[rotating-api-key-client](https://github.com/Mirrowel/LLM-API-Key-Proxy)**: For intelligent API key rotation and retry logic
 - **LiteLLM**: For unified LLM API access
 - **Vue.js**: For the modern reactive frontend
 - **FastAPI**: For the high-performance web backend
@@ -904,10 +950,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Questions**: See [QUESTIONS.md](QUESTIONS.md) for detailed question catalog
 - **Issues**: Report bugs via GitHub Issues
 - **Discussions**: Use GitHub Discussions for questions
-- **Verification**: Run `python verify_setup.py` for setup issues
-
----
-
-**MirroBench** - The definitive platform for comprehensive LLM evaluation. Built by the community, for the community.
-
-*Last updated: November 2024*

@@ -1,0 +1,30 @@
+# LLM Benchmark System Requirements
+
+# Core dependencies
+python-dotenv==1.0.0
+pydantic==2.5.0
+PyYAML==6.0.1
+
+# LLM Client
+# Preferred: install the rotator library directly from the experimental GitHub branch in editable mode
+# Single-command install (editable):
+# pip install -e "git+https://github.com/Mirrowel/LLM-API-Key-Proxy.git@cli-oauth#egg=rotator_library&subdirectory=src/rotator_library"
+# Or let pip fetch it from VCS automatically (CI friendly):
+rotating-api-key-client @ git+https://github.com/Mirrowel/LLM-API-Key-Proxy.git@cli-oauth#subdirectory=src/rotator_library
+
+# Fallback (if you vendor/copy the package into this repo):
+# Run: pip install -e lib/rotator_library
+litellm>=1.30.0
+
+# Terminal UI
+rich==13.7.0
+
+# Web Viewer
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+jinja2==3.1.3
+aiofiles==23.2.1
+python-multipart==0.0.6
+
+# Optional: for better performance
+# orjson==3.9.15
