@@ -362,6 +362,7 @@ class BenchmarkRunner:
         full_response_obj = None
         error = None
         last_progress_time = 0
+        cleaned_response_text = ""  # Initialize to prevent UnboundLocalError during cancellation
 
         # Token counting buffers for batched tokenization
         content_buffer = ""

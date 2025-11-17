@@ -157,6 +157,8 @@ class JobRunner:
 
                 # Collect responses from all runs
                 responses = {}
+                code_execution_results = {}
+
                 for run_id in job.run_ids:
                     # Get run metadata to find model name
                     run = results_manager.get_run(run_id)
@@ -172,14 +174,32 @@ class JobRunner:
                     if response:
                         responses[run.model] = response
 
+                        # Try to get code execution results for this model/question
+                        code_eval = results_manager.get_evaluation(
+                            run_id,
+                            run.model,
+                            question_id,
+                            "code_execution"
+                        )
+                        if code_eval:
+                            code_execution_results[run.model] = {
+                                'passed': code_eval.passed,
+                                'score': code_eval.score,
+                                'reasoning': code_eval.reasoning,
+                                'error': code_eval.details.get('error') if code_eval.details else None,
+                                'output': code_eval.details.get('output') if code_eval.details else None
+                            }
+
                 if not responses:
                     print(f"No responses found for question {question_id}, skipping")
                     return None
 
-                # Run comparative evaluation
+                # Run comparative evaluation with code execution results and results_dir
                 results = await evaluator.evaluate_question(
                     question,
-                    responses
+                    responses,
+                    code_execution_results=code_execution_results if code_execution_results else None,
+                    results_dir=self.results_dir
                 )
 
                 # Save results for this question

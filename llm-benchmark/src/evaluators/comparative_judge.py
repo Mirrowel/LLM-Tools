@@ -6,8 +6,11 @@ against each other, providing 0-100 scores for each model in the context of the
 other responses. This allows for relative quality assessment.
 """
 
+import json
 import re
 import random
+from datetime import datetime
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 from src.schemas import Question, ModelResponse
 
@@ -32,11 +35,37 @@ class ComparativeJudgeEvaluator:
         self.client = client
         self.judge_model = judge_model
 
+    def _save_judge_log(
+        self,
+        question_id: str,
+        log_type: str,
+        data: Dict[str, Any],
+        results_dir: Optional[Path] = None
+    ) -> None:
+        """Save comparative judge request or response log to file."""
+        if not results_dir:
+            return  # Skip logging if not configured
+
+        try:
+            # Create judge_logs directory for comparative judge
+            # results_dir/evaluations/comparative_judge/judge_logs/
+            log_dir = results_dir / "evaluations" / "comparative_judge" / "judge_logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+
+            # Save log file
+            log_file = log_dir / f"{question_id}_{log_type}.json"
+            with open(log_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            # Don't fail evaluation if logging fails
+            print(f"Warning: Failed to save comparative judge log: {e}")
+
     async def evaluate_question(
         self,
         question: Question,
         responses: Dict[str, ModelResponse],
-        code_execution_results: Optional[Dict[str, Any]] = None
+        code_execution_results: Optional[Dict[str, Any]] = None,
+        results_dir: Optional[Path] = None
     ) -> Dict[str, Dict[str, Any]]:
         """
         Evaluate all responses for a single question comparatively.
@@ -62,6 +91,26 @@ class ComparativeJudgeEvaluator:
             code_execution_results
         )
 
+        # Log the request before calling the judge
+        self._save_judge_log(
+            question_id=question.id,
+            log_type="request",
+            data={
+                "timestamp": datetime.now().isoformat(),
+                "question_id": question.id,
+                "judge_model": self.judge_model,
+                "models_being_compared": list(responses.keys()),
+                "num_responses": len(responses),
+                "has_code_execution_results": code_execution_results is not None,
+                "prompt": prompt,
+                "anonymized_mapping": {
+                    entry['label']: entry['model_name']
+                    for entry in anonymized_responses
+                }
+            },
+            results_dir=results_dir
+        )
+
         # Get judge's evaluation
         judge_response = await self._call_judge(prompt)
 
@@ -69,6 +118,21 @@ class ComparativeJudgeEvaluator:
         results = self._parse_comparative_response(
             judge_response,
             anonymized_responses
+        )
+
+        # Log the response after receiving it
+        self._save_judge_log(
+            question_id=question.id,
+            log_type="response",
+            data={
+                "timestamp": datetime.now().isoformat(),
+                "question_id": question.id,
+                "judge_model": self.judge_model,
+                "judge_response_raw": judge_response,
+                "parsed_results": results,
+                "models_evaluated": list(results.keys())
+            },
+            results_dir=results_dir
         )
 
         return results
